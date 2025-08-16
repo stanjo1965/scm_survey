@@ -29,10 +29,10 @@ import {
 export default function HomePage() {
   const router = useRouter();
 
-  const handleStartSurvey = () => {
-    // 로그인 없이 바로 설문 페이지로 이동
-    router.push('/survey');
-  };
+          const handleStartSurvey = () => {
+          // 정보 입력 페이지로 이동
+          router.push('/survey/info');
+        };
 
   const handleLearnMore = () => {
     router.push('/about');
@@ -315,10 +315,10 @@ export default function HomePage() {
                 연락처
               </Typography>
               <Typography variant="body2" sx={{ opacity: 0.8, mb: 1 }}>
-                이메일: info@scmsurvey.com
+                이메일: sangkeun.jo@gmail.com
               </Typography>
               <Typography variant="body2" sx={{ opacity: 0.8 }}>
-                전화: 02-1234-5678
+                전화: 010-2482-7898
               </Typography>
             </Grid>
           </Grid>

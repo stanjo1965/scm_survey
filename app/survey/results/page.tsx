@@ -33,7 +33,8 @@ import { generateHTMLToPDF } from '../../utils/htmlPdfGenerator';
 import {
   Download as DownloadIcon,
   Refresh as RefreshIcon,
-  Home as HomeIcon
+  Home as HomeIcon,
+  Psychology as PsychologyIcon
 } from '@mui/icons-material';
 
 // Mock 결과 데이터
@@ -84,6 +85,20 @@ const getGrade = (score: number): string => {
 export default function SurveyResultsPage() {
   const router = useRouter();
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState<string>('');
+  
+  // 사용자 정보 가져오기
+  const [userInfo, setUserInfo] = useState<any>(null);
+  
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const storedUserInfo = localStorage.getItem('userInfo');
+      if (storedUserInfo) {
+        setUserInfo(JSON.parse(storedUserInfo));
+      }
+    }
+  }, []);
 
   const radarData = Object.entries(mockResult.categoryScores).map(([key, value]) => ({
     category: categoryNames[key as keyof typeof categoryNames],
@@ -99,12 +114,40 @@ export default function SurveyResultsPage() {
   const handleDownloadReport = async () => {
     setIsGeneratingPDF(true);
     try {
-      await generateHTMLToPDF(mockResult, '귀하의 회사');
+      await generateHTMLToPDF(mockResult, userInfo?.company || '귀하의 회사', aiAnalysis);
     } catch (error) {
       console.error('PDF 생성 오류:', error);
       alert('PDF 생성 중 오류가 발생했습니다.');
     } finally {
       setIsGeneratingPDF(false);
+    }
+  };
+
+  const handleGenerateAIAnalysis = async () => {
+    setIsGeneratingAI(true);
+    try {
+      const response = await fetch('/api/ai-analysis', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userInfo: userInfo,
+          resultData: mockResult
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        setAiAnalysis(data.analysis);
+      } else {
+        alert('AI 분석 생성 중 오류가 발생했습니다.');
+      }
+    } catch (error) {
+      console.error('AI 분석 오류:', error);
+      alert('AI 분석 생성 중 오류가 발생했습니다.');
+    } finally {
+      setIsGeneratingAI(false);
     }
   };
 
@@ -159,25 +202,63 @@ export default function SurveyResultsPage() {
             <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
               귀사의 SCM 성숙도는 <strong>{getMaturityLevel(mockResult.totalScore)} 수준</strong>입니다.
             </Typography>
-            <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
-              <Button
-                variant="contained"
-                startIcon={<DownloadIcon />}
-                onClick={handleDownloadReport}
-                disabled={isGeneratingPDF}
-                size="large"
-              >
-                {isGeneratingPDF ? 'PDF 생성 중...' : 'PDF 보고서 다운로드'}
-              </Button>
-              <Button
-                variant="outlined"
-                startIcon={<RefreshIcon />}
-                onClick={handleNewSurvey}
-                size="large"
-              >
-                새 진단 시작
-              </Button>
-            </Box>
+            
+            {/* 사용자 정보 표시 */}
+            {userInfo && (
+              <Box sx={{ mb: 3, p: 2, bgcolor: 'grey.50', borderRadius: 2 }}>
+                <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>
+                  진단자 정보
+                </Typography>
+                <Box sx={{ display: 'flex', justifyContent: 'center', gap: 4, flexWrap: 'wrap' }}>
+                  <Typography variant="body2">
+                    <strong>이름:</strong> {userInfo.name}
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>회사:</strong> {userInfo.company}
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>이메일:</strong> {userInfo.email}
+                  </Typography>
+                  <Typography variant="body2">
+                    <strong>전화:</strong> {userInfo.phone}
+                  </Typography>
+                </Box>
+                <Box sx={{ mt: 2, p: 2, bgcolor: 'success.light', borderRadius: 1 }}>
+                  <Typography variant="body2" sx={{ color: 'success.dark', fontWeight: 'bold' }}>
+                    ✅ 진단 결과가 {userInfo.email}과 관리자에게 이메일로 발송되었습니다.
+                  </Typography>
+                </Box>
+              </Box>
+            )}
+                         <Box sx={{ display: 'flex', gap: 2, justifyContent: 'center', flexWrap: 'wrap' }}>
+               <Button
+                 variant="contained"
+                 startIcon={<DownloadIcon />}
+                 onClick={handleDownloadReport}
+                 disabled={isGeneratingPDF}
+                 size="large"
+               >
+                 {isGeneratingPDF ? 'PDF 생성 중...' : 'PDF 보고서 다운로드'}
+               </Button>
+               <Button
+                 variant="contained"
+                 color="secondary"
+                 startIcon={<PsychologyIcon />}
+                 onClick={handleGenerateAIAnalysis}
+                 disabled={isGeneratingAI}
+                 size="large"
+               >
+                 {isGeneratingAI ? 'AI 분석 생성 중...' : 'AI 개선 방안 생성'}
+               </Button>
+               <Button
+                 variant="outlined"
+                 startIcon={<RefreshIcon />}
+                 onClick={handleNewSurvey}
+                 size="large"
+               >
+                 새 진단 시작
+               </Button>
+             </Box>
           </CardContent>
         </Card>
 
@@ -272,8 +353,57 @@ export default function SurveyResultsPage() {
               </CardContent>
             </Card>
           </Grid>
-        </Grid>
-      </Container>
-    </Box>
-  );
-} 
+                 </Grid>
+
+         {/* AI 분석 결과 */}
+         {aiAnalysis && (
+           <Card sx={{ mt: 4 }}>
+             <CardContent sx={{ p: 4 }}>
+               <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
+                 <PsychologyIcon sx={{ fontSize: 30, color: 'secondary.main', mr: 2 }} />
+                 <Typography variant="h5" component="h2" sx={{ fontWeight: 'bold' }}>
+                   AI 개선 방안 분석
+                 </Typography>
+               </Box>
+               <Box 
+                 sx={{ 
+                   p: 3, 
+                   bgcolor: 'grey.50', 
+                   borderRadius: 2,
+                   border: '1px solid #e0e0e0'
+                 }}
+               >
+                 <Typography 
+                   component="div" 
+                   variant="body1" 
+                   sx={{ 
+                     whiteSpace: 'pre-line',
+                     lineHeight: 1.8,
+                     '& h2': { 
+                       color: 'primary.main', 
+                       fontWeight: 'bold', 
+                       mt: 3, 
+                       mb: 2,
+                       fontSize: '1.3rem'
+                     },
+                     '& h3': { 
+                       color: 'secondary.main', 
+                       fontWeight: 'bold', 
+                       mt: 2, 
+                       mb: 1,
+                       fontSize: '1.1rem'
+                     },
+                     '& ul': { pl: 3 },
+                     '& li': { mb: 0.5 }
+                   }}
+                 >
+                   {aiAnalysis}
+                 </Typography>
+               </Box>
+             </CardContent>
+           </Card>
+         )}
+       </Container>
+     </Box>
+   );
+ } 

@@ -352,7 +352,7 @@ const generateHTMLReport = (surveyResult: SurveyResult, companyName: string): st
   `;
 };
 
-export const generateHTMLToPDF = async (surveyResult: SurveyResult, companyName: string = '귀하의 회사'): Promise<void> => {
+export const generateHTMLToPDF = async (surveyResult: SurveyResult, companyName: string = '귀하의 회사', aiAnalysis?: string): Promise<void> => {
   try {
     const htmlContent = generateHTMLReport(surveyResult, companyName);
     const tempDiv = document.createElement('div');

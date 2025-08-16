@@ -146,18 +146,31 @@ export default function SurveyQuestionsPage() {
 
   const handleSubmitSurvey = async () => {
     try {
-      // Mock 사용자 정보 (로그인 없이 진단 가능)
-      const mockUserId = 'guest-123';
-      const mockCompanyId = 'guest-company';
-
+      // localStorage에서 사용자 정보 가져오기
+      const userInfo = localStorage.getItem('userInfo');
+      let userId = 'guest-123';
+      let companyId = 'guest-company';
+      let userName = '게스트';
+      let userEmail = '';
+      
+      if (userInfo) {
+        const parsedUserInfo = JSON.parse(userInfo);
+        userId = `user-${Date.now()}`;
+        companyId = parsedUserInfo.company || 'guest-company';
+        userName = parsedUserInfo.name || '게스트';
+        userEmail = parsedUserInfo.email || '';
+      }
+      
       const response = await fetch('/api/survey', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          userId: mockUserId,
-          companyId: mockCompanyId,
+          userId: userId,
+          companyId: companyId,
+          userName: userName,
+          userEmail: userEmail,
           answers: answers
         }),
       });
