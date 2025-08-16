@@ -6,12 +6,7 @@
       "use": "@vercel/next"
     }
   ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/"
-    }
-  ],
+  "routes": [],
   "env": {
     "NODE_ENV": "production"
   }
