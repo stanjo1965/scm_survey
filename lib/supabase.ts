@@ -2,10 +2,10 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-//
-console.log(supabaseUrl)
-console.log(supabaseAnonKey)
+
+console.log("client 생성 전")
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+console.log("client 생성 후")
 
 // 데이터베이스 스키마
 export const createTables = async () => {
