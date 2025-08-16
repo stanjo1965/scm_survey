@@ -7,8 +7,6 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  console.log("Supabase URL:", supabaseUrl);
-  console.log("Supabase Anon Key:", supabaseAnonKey);
   return (
     <html lang="ko">
       <body>
