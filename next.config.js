@@ -9,6 +9,7 @@ const nextConfig = {
     optimizePackageImports: ['@mui/material', '@mui/icons-material'],
     // Windows 파일 시스템 안정성 향상
     serverComponentsExternalPackages: [],
+    appDir: true
   },
   transpilePackages: [
     '@mui/material',
