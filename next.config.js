@@ -4,6 +4,7 @@ const path = require('path');
 async function initSupabase() {
   try {
     // lib/supabase.ts 실행
+    console.log("Supabase 초기화 중...");
     const { createTables } = await import(path.join(__dirname, "lib/supabase.ts"));
     await createTables();
   } catch (err) {

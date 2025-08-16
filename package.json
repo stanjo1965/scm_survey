@@ -7,6 +7,7 @@
     "dev:safe": "cross-env NODE_OPTIONS=--max-old-space-size=4096 next dev --port 3000",
     "dev:fast": "cross-env NODE_OPTIONS=--max-old-space-size=8192 next dev --port 3000",
     "dev:clean": "npm run clean && npm run dev:safe",
+    "prebuild": "ts-node scripts/initSupabase.ts",
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
