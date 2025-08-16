@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getPool } from '../../../lib/db';
+import { getPool } from '../../lib/db';
 import { RowDataPacket, OkPacket } from 'mysql2/promise';
 
 export async function POST(request: Request) {
