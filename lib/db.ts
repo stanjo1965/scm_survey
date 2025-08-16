@@ -7,7 +7,7 @@ const mockPool = {
       if (sql.includes('FROM survey_results WHERE user_id = ? AND company_id = ?')) {
         const [userId, companyId] = values || [];
         if (userId === 'guest-123' && companyId === 'guest-company') {
-          return [[{ id: 101, user_id: userId, company_id: companyId }], null];
+            return [[{ id: 101, user_id: userId, company_id: companyId } as mysql.RowDataPacket], null];
         }
       }
       return [[], null];

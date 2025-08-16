@@ -24,6 +24,7 @@
     "@mui/material": "^5.18.0",
     "@mui/material-nextjs": "^7.3.0",
     "@react-pdf/renderer": "^4.3.0",
+    "@supabase/supabase-js": "^2.55.0",
     "bcryptjs": "^3.0.2",
     "html-pdf-node": "^1.0.8",
     "html2canvas": "^1.4.1",
