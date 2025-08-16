@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { initSupabase } from '../scripts/initSupabase';
 import {
   Box,
   Container,
@@ -29,7 +28,6 @@ import {
 
 export default function HomePage() {
   const router = useRouter();
-  initSupabase();
 
   const handleStartSurvey = () => {
     // 로그인 없이 바로 설문 페이지로 이동
