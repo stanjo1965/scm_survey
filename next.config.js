@@ -1,20 +1,6 @@
 /** @type {import('next').NextConfig} */
 const path = require('path');
 
-async function initSupabase() {
-  try {
-    // lib/supabase.ts 실행
-    console.log("Supabase 초기화 중...");
-    const { createTables } = await import(path.join(__dirname, "lib/supabase.ts"));
-    await createTables();
-  } catch (err) {
-    console.error("❌ Supabase 초기화 실패:", err);
-  }
-}
-
-// 빌드 시작 시점 실행
-initSupabase();
-
 const nextConfig = {
   // Windows 환경 최적화
   experimental: {
