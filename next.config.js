@@ -1,6 +1,19 @@
 /** @type {import('next').NextConfig} */
 const path = require('path');
 
+async function initSupabase() {
+  try {
+    // lib/supabase.ts 실행
+    const { createTables } = await import(path.join(__dirname, "lib/supabase.ts"));
+    await createTables();
+  } catch (err) {
+    console.error("❌ Supabase 초기화 실패:", err);
+  }
+}
+
+// 빌드 시작 시점 실행
+initSupabase();
+
 const nextConfig = {
   // Windows 환경 최적화
   experimental: {
@@ -107,7 +120,7 @@ const nextConfig = {
   // Windows 환경에서 파일 시스템 안정성
   outputFileTracing: false, // 파일 추적 비활성화
   poweredByHeader: false,
-  reactStrictMode: false, // 개발 중 Strict Mode 비활성화
+  reactStrictMode: true, // 개발 중 Strict Mode 비활성화
 };
 
 module.exports = nextConfig;
