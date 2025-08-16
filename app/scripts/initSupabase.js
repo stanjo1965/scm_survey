@@ -1,5 +1,5 @@
 // scripts/initSupabase.ts
-import { createTables } from 'app/lib/supabase';
+import { createTables } from '../lib/supabase';
 
 async function initSupabase() {
   try {
