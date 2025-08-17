@@ -676,12 +676,15 @@ export const generateHTMLToPDF = async (surveyResult: SurveyResult, companyName:
     await new Promise(resolve => setTimeout(resolve, 3000));
 
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
-    const sections = ['.cover-section', '.category-analysis-page', '.detailed-scores-page', '.analysis-page', '.ai-analysis-page', '.recommendations-page', '.action-plan-page'].filter(selector => {
+    const sections = ['.cover-section', '.category-analysis-page', '.analysis-page', '.ai-analysis-page', '.recommendations-page', '.action-plan-page'].filter(selector => {
       if (selector === '.ai-analysis-page' && !aiAnalysis) {
         return false;
       }
       return true;
     });
+
+    // 세부항목 페이지들을 개별적으로 처리
+    const detailedScoresPages = tempDiv.querySelectorAll('.detailed-scores-page');
 
     for (let i = 0; i < sections.length; i++) {
       const section = tempDiv.querySelector(sections[i]) as HTMLElement;
@@ -704,6 +707,32 @@ export const generateHTMLToPDF = async (surveyResult: SurveyResult, companyName:
         const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
         if (i > 0) { pdf.addPage(); }
+        pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+      }
+    }
+
+    // 세부항목 페이지들을 순서대로 추가
+    for (let i = 0; i < detailedScoresPages.length; i++) {
+      const section = detailedScoresPages[i] as HTMLElement;
+      if (section) {
+        const canvas = await html2canvas(section, {
+          scale: 4,
+          useCORS: true,
+          allowTaint: true,
+          backgroundColor: '#ffffff',
+          width: 800,
+          height: section.scrollHeight,
+          scrollX: 0,
+          scrollY: 0,
+          logging: false,
+          removeContainer: true
+        });
+
+        const imgData = canvas.toDataURL('image/png', 1.0);
+        const imgWidth = 210;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+        pdf.addPage();
         pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
       }
     }

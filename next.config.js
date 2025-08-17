@@ -39,9 +39,6 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   reactStrictMode: true,
-  // Windows 환경에서 빌드 안정성 향상
-  outputFileTracing: false,
-  poweredByHeader: false,
 };
 
 module.exports = nextConfig;
