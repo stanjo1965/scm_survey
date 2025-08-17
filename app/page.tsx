@@ -23,16 +23,25 @@ import {
   Support as SupportIcon,
   ArrowForward as ArrowForwardIcon,
   Info as InfoIcon,
-  ContactSupport as ContactSupportIcon
+  ContactSupport as ContactSupportIcon,
+  Assignment as AssignmentIcon,
+  Settings as SettingsIcon
 } from '@mui/icons-material';
 
 export default function HomePage() {
   const router = useRouter();
 
-          const handleStartSurvey = () => {
-          // 정보 입력 페이지로 이동
-          router.push('/survey/info');
-        };
+  const handleStartSurvey = () => {
+    console.log('진단 시작 버튼 클릭됨');
+    try {
+      // 정보 입력 페이지로 이동
+      router.push('/survey/info');
+    } catch (error) {
+      console.error('페이지 이동 오류:', error);
+      // 대안: window.location 사용
+      window.location.href = '/survey/info';
+    }
+  };
 
   const handleLearnMore = () => {
     router.push('/about');
@@ -40,6 +49,10 @@ export default function HomePage() {
 
   const handleContactUs = () => {
     router.push('/contact');
+  };
+
+  const handleGoToImprovementPlan = () => {
+    router.push('/improvement-plan');
   };
 
   const features = [
@@ -88,6 +101,12 @@ export default function HomePage() {
               <Button color="inherit" startIcon={<InfoIcon />} onClick={handleLearnMore}>
                 자세히 알아보기
               </Button>
+              <Button color="inherit" startIcon={<AssignmentIcon />} onClick={handleGoToImprovementPlan}>
+                개선계획 관리
+              </Button>
+              <Button color="inherit" startIcon={<SettingsIcon />} onClick={() => router.push('/admin/settings')}>
+                관리자 설정
+              </Button>
               <Button color="inherit" startIcon={<ContactSupportIcon />} onClick={handleContactUs}>
                 문의하기
               </Button>
@@ -109,20 +128,23 @@ export default function HomePage() {
                 체계적인 개선 방안을 제시합니다
               </Typography>
               <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                <Button
-                  variant="contained"
-                  size="large"
-                  onClick={handleStartSurvey}
-                  sx={{
-                    bgcolor: 'white',
-                    color: 'primary.main',
-                    px: 4,
-                    py: 1.5,
-                    '&:hover': { bgcolor: 'grey.100' }
-                  }}
-                >
-                  진단 시작하기
-                </Button>
+                                 <Button
+                   variant="contained"
+                   size="large"
+                   onClick={handleStartSurvey}
+                   component="a"
+                   href="/survey/info"
+                   sx={{
+                     bgcolor: 'white',
+                     color: 'primary.main',
+                     px: 4,
+                     py: 1.5,
+                     textDecoration: 'none',
+                     '&:hover': { bgcolor: 'grey.100' }
+                   }}
+                 >
+                   진단 시작하기
+                 </Button>
                 <Button
                   variant="outlined"
                   size="large"
@@ -272,15 +294,17 @@ export default function HomePage() {
               무료로 제공되는 SCM 성숙도 진단으로 귀사의 공급망 관리 수준을 확인하고<br />
               체계적인 개선 방안을 받아보세요
             </Typography>
-            <Button
-              variant="contained"
-              size="large"
-              onClick={handleStartSurvey}
-              endIcon={<ArrowForwardIcon />}
-              sx={{ px: 6, py: 2, fontSize: '1.1rem' }}
-            >
-              무료 진단 시작하기
-            </Button>
+                         <Button
+               variant="contained"
+               size="large"
+               onClick={handleStartSurvey}
+               component="a"
+               href="/survey/info"
+               endIcon={<ArrowForwardIcon />}
+               sx={{ px: 6, py: 2, fontSize: '1.1rem', textDecoration: 'none' }}
+             >
+               무료 진단 시작하기
+             </Button>
           </Box>
         </Container>
       </Box>

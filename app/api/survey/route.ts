@@ -188,7 +188,82 @@ export async function POST(request: Request) {
       );
     }
 
-    // 카테고리별 점수 계산
+    // 설문 질문 데이터 (가중치 정보 포함)
+    const surveyQuestions = [
+      // 계획 관리 (10개)
+      { id: 'planning_1', category: 'planning', weight: 3 },
+      { id: 'planning_2', category: 'planning', weight: 4 },
+      { id: 'planning_3', category: 'planning', weight: 3 },
+      { id: 'planning_4', category: 'planning', weight: 3 },
+      { id: 'planning_5', category: 'planning', weight: 4 },
+      { id: 'planning_6', category: 'planning', weight: 3 },
+      { id: 'planning_7', category: 'planning', weight: 3 },
+      { id: 'planning_8', category: 'planning', weight: 3 },
+      { id: 'planning_9', category: 'planning', weight: 4 },
+      { id: 'planning_10', category: 'planning', weight: 3 },
+
+      // 조달 관리 (10개)
+      { id: 'procurement_1', category: 'procurement', weight: 4 },
+      { id: 'procurement_2', category: 'procurement', weight: 3 },
+      { id: 'procurement_3', category: 'procurement', weight: 3 },
+      { id: 'procurement_4', category: 'procurement', weight: 3 },
+      { id: 'procurement_5', category: 'procurement', weight: 4 },
+      { id: 'procurement_6', category: 'procurement', weight: 4 },
+      { id: 'procurement_7', category: 'procurement', weight: 3 },
+      { id: 'procurement_8', category: 'procurement', weight: 3 },
+      { id: 'procurement_9', category: 'procurement', weight: 3 },
+      { id: 'procurement_10', category: 'procurement', weight: 4 },
+
+      // 재고 관리 (10개)
+      { id: 'inventory_1', category: 'inventory', weight: 3 },
+      { id: 'inventory_2', category: 'inventory', weight: 3 },
+      { id: 'inventory_3', category: 'inventory', weight: 3 },
+      { id: 'inventory_4', category: 'inventory', weight: 4 },
+      { id: 'inventory_5', category: 'inventory', weight: 3 },
+      { id: 'inventory_6', category: 'inventory', weight: 4 },
+      { id: 'inventory_7', category: 'inventory', weight: 3 },
+      { id: 'inventory_8', category: 'inventory', weight: 3 },
+      { id: 'inventory_9', category: 'inventory', weight: 3 },
+      { id: 'inventory_10', category: 'inventory', weight: 3 },
+
+      // 생산 관리 (10개)
+      { id: 'production_1', category: 'production', weight: 3 },
+      { id: 'production_2', category: 'production', weight: 3 },
+      { id: 'production_3', category: 'production', weight: 4 },
+      { id: 'production_4', category: 'production', weight: 3 },
+      { id: 'production_5', category: 'production', weight: 3 },
+      { id: 'production_6', category: 'production', weight: 3 },
+      { id: 'production_7', category: 'production', weight: 3 },
+      { id: 'production_8', category: 'production', weight: 4 },
+      { id: 'production_9', category: 'production', weight: 3 },
+      { id: 'production_10', category: 'production', weight: 3 },
+
+      // 물류 관리 (10개)
+      { id: 'logistics_1', category: 'logistics', weight: 3 },
+      { id: 'logistics_2', category: 'logistics', weight: 3 },
+      { id: 'logistics_3', category: 'logistics', weight: 4 },
+      { id: 'logistics_4', category: 'logistics', weight: 3 },
+      { id: 'logistics_5', category: 'logistics', weight: 3 },
+      { id: 'logistics_6', category: 'logistics', weight: 3 },
+      { id: 'logistics_7', category: 'logistics', weight: 4 },
+      { id: 'logistics_8', category: 'logistics', weight: 3 },
+      { id: 'logistics_9', category: 'logistics', weight: 3 },
+      { id: 'logistics_10', category: 'logistics', weight: 3 },
+
+      // 통합 관리 (10개)
+      { id: 'integration_1', category: 'integration', weight: 4 },
+      { id: 'integration_2', category: 'integration', weight: 3 },
+      { id: 'integration_3', category: 'integration', weight: 4 },
+      { id: 'integration_4', category: 'integration', weight: 3 },
+      { id: 'integration_5', category: 'integration', weight: 3 },
+      { id: 'integration_6', category: 'integration', weight: 3 },
+      { id: 'integration_7', category: 'integration', weight: 3 },
+      { id: 'integration_8', category: 'integration', weight: 4 },
+      { id: 'integration_9', category: 'integration', weight: 4 },
+      { id: 'integration_10', category: 'integration', weight: 3 }
+    ];
+
+    // 카테고리별 점수 계산 (가중치 고려)
     const categoryScores = {
       planning: 0,
       procurement: 0,
@@ -197,7 +272,7 @@ export async function POST(request: Request) {
       logistics: 0,
       integration: 0
     };
-    const categoryCounts = {
+    const categoryWeights = {
       planning: 0,
       procurement: 0,
       inventory: 0,
@@ -207,22 +282,30 @@ export async function POST(request: Request) {
     };
 
     for (const [questionId, answer] of Object.entries(answers)) {
-      const category = questionId.split('_')[0];
-      if (categoryScores.hasOwnProperty(category)) {
-        categoryScores[category] += Number(answer);
-        categoryCounts[category]++;
+      const question = surveyQuestions.find(q => q.id === questionId);
+      if (question && categoryScores.hasOwnProperty(question.category)) {
+        const weightedScore = Number(answer) * question.weight;
+        categoryScores[question.category] += weightedScore;
+        categoryWeights[question.category] += question.weight;
       }
     }
 
-    // 평균 점수 계산
+    // 가중 평균 점수 계산
     for (const category in categoryScores) {
-      if (categoryCounts[category] > 0) {
-        categoryScores[category] = categoryScores[category] / categoryCounts[category];
+      if (categoryWeights[category] > 0) {
+        categoryScores[category] = categoryScores[category] / categoryWeights[category];
       }
     }
 
     // 전체 평균 점수 계산
     const totalScore = Object.values(categoryScores).reduce((sum, score) => sum + score, 0) / 6;
+    
+    // 디버깅을 위한 점수 출력
+    console.log('=== 진단 점수 계산 결과 ===');
+    console.log('입력된 답변:', answers);
+    console.log('카테고리별 점수:', categoryScores);
+    console.log('전체 점수:', totalScore);
+    console.log('========================');
 
     // 카테고리 분석 결과 저장
     for (const [category, score] of Object.entries(categoryScores)) {
@@ -259,9 +342,12 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      resultId,
+      id: resultId,
+      userId,
+      companyId,
       totalScore,
-      categoryScores
+      categoryScores,
+      createdAt: now
     });
 
   } catch (error) {

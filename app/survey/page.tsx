@@ -32,7 +32,7 @@ export default function SurveyPage() {
   const router = useRouter();
 
   const handleStartSurvey = () => {
-    router.push('/survey/questions');
+    router.push('/survey/info');
   };
 
   const handleBackToHome = () => {

@@ -17,7 +17,7 @@ interface SurveyResult {
   createdAt: string;
 }
 
-const generateHTMLReport = (surveyResult: SurveyResult, companyName: string): string => {
+const generateHTMLReport = (surveyResult: SurveyResult, companyName: string, aiAnalysis?: string): string => {
   const categoryNames = {
     planning: '계획 관리',
     procurement: '조달 관리',
@@ -253,6 +253,59 @@ const generateHTMLReport = (surveyResult: SurveyResult, companyName: string): st
                 color: #9c27b0;
                 margin-bottom: 5px;
             }
+            
+            .ai-analysis-page {
+                padding: 40px;
+                min-height: 1123px;
+                background: white;
+                page-break-after: always;
+            }
+            
+            .ai-content {
+                margin-top: 30px;
+            }
+            
+            .ai-section-title {
+                font-size: 28px;
+                font-weight: 700;
+                color: #1976d2;
+                margin-bottom: 20px;
+                margin-top: 30px;
+                border-bottom: 2px solid #1976d2;
+                padding-bottom: 10px;
+            }
+            
+            .ai-subtitle {
+                font-size: 20px;
+                font-weight: 600;
+                color: #333;
+                margin-bottom: 15px;
+                margin-top: 25px;
+            }
+            
+            .ai-text {
+                font-size: 16px;
+                line-height: 1.8;
+                margin-bottom: 15px;
+                color: #555;
+            }
+            
+            .ai-list-item {
+                font-size: 16px;
+                line-height: 1.8;
+                margin-bottom: 8px;
+                color: #555;
+                padding-left: 20px;
+                position: relative;
+            }
+            
+            .ai-list-item:before {
+                content: "•";
+                color: #1976d2;
+                font-weight: bold;
+                position: absolute;
+                left: 0;
+            }
         </style>
     </head>
     <body>
@@ -325,6 +378,29 @@ const generateHTMLReport = (surveyResult: SurveyResult, companyName: string): st
                     `).join('')}
             </div>
             
+            <!-- AI 분석 페이지 -->
+            ${aiAnalysis ? `
+            <div class="ai-analysis-page">
+                <div class="page-title">AI 분석 결과</div>
+                
+                <div class="ai-content">
+                    ${aiAnalysis.split('\n').map(line => {
+                        if (line.startsWith('## ')) {
+                            return `<h2 class="ai-section-title">${line.replace('## ', '')}</h2>`;
+                        } else if (line.startsWith('**') && line.endsWith('**')) {
+                            return `<h3 class="ai-subtitle">${line.replace(/\*\*/g, '')}</h3>`;
+                        } else if (line.startsWith('- ')) {
+                            return `<li class="ai-list-item">${line.replace('- ', '')}</li>`;
+                        } else if (line.trim() === '') {
+                            return '<br>';
+                        } else {
+                            return `<p class="ai-text">${line}</p>`;
+                        }
+                    }).join('')}
+                </div>
+            </div>
+            ` : ''}
+            
             <!-- 실행 계획 페이지 -->
             <div class="action-plan-page">
                 <div class="page-title">실행 계획</div>
@@ -354,7 +430,7 @@ const generateHTMLReport = (surveyResult: SurveyResult, companyName: string): st
 
 export const generateHTMLToPDF = async (surveyResult: SurveyResult, companyName: string = '귀하의 회사', aiAnalysis?: string): Promise<void> => {
   try {
-    const htmlContent = generateHTMLReport(surveyResult, companyName);
+    const htmlContent = generateHTMLReport(surveyResult, companyName, aiAnalysis);
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = htmlContent;
     tempDiv.style.position = 'absolute';
@@ -366,7 +442,12 @@ export const generateHTMLToPDF = async (surveyResult: SurveyResult, companyName:
     await new Promise(resolve => setTimeout(resolve, 3000));
 
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
-    const sections = ['.cover-section', '.category-analysis-page', '.analysis-page', '.recommendations-page', '.action-plan-page'];
+    const sections = ['.cover-section', '.category-analysis-page', '.analysis-page', '.ai-analysis-page', '.recommendations-page', '.action-plan-page'].filter(selector => {
+      if (selector === '.ai-analysis-page' && !aiAnalysis) {
+        return false;
+      }
+      return true;
+    });
 
     for (let i = 0; i < sections.length; i++) {
       const section = tempDiv.querySelector(sections[i]) as HTMLElement;

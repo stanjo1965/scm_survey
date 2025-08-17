@@ -76,19 +76,37 @@ export default function SurveyInfoPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    console.log('폼 제출 시도:', formData);
     
     if (validateForm()) {
+      console.log('폼 검증 통과');
       // 사용자 정보를 localStorage에 저장
       localStorage.setItem('userInfo', JSON.stringify(formData));
+      console.log('localStorage 저장 완료');
       
-      // 진단 소개 페이지로 이동
-      router.push('/survey');
+      // 진단 질문 페이지로 이동
+      try {
+        router.push('/survey/questions');
+        console.log('페이지 이동 시도');
+      } catch (error) {
+        console.error('페이지 이동 오류:', error);
+        // 대안: window.location 사용
+        window.location.href = '/survey/questions';
+      }
+    } else {
+      console.log('폼 검증 실패:', errors);
     }
   };
 
   const handleSkip = () => {
-    // 정보 입력을 건너뛰고 바로 진단 소개 페이지로 이동
-    router.push('/survey');
+    console.log('건너뛰기 버튼 클릭');
+    // 정보 입력을 건너뛰고 바로 진단 질문 페이지로 이동
+    try {
+      router.push('/survey/questions');
+    } catch (error) {
+      console.error('페이지 이동 오류:', error);
+      window.location.href = '/survey/questions';
+    }
   };
 
   return (
@@ -113,9 +131,6 @@ export default function SurveyInfoPage() {
           <Stepper activeStep={0} alternativeLabel>
             <Step>
               <StepLabel>정보 입력</StepLabel>
-            </Step>
-            <Step>
-              <StepLabel>진단 소개</StepLabel>
             </Step>
             <Step>
               <StepLabel>진단 진행</StepLabel>
@@ -242,7 +257,9 @@ export default function SurveyInfoPage() {
                   variant="outlined"
                   size="large"
                   onClick={handleSkip}
-                  sx={{ px: 4, py: 1.5 }}
+                  component="a"
+                  href="/survey/questions"
+                  sx={{ px: 4, py: 1.5, textDecoration: 'none' }}
                 >
                   건너뛰기
                 </Button>
