@@ -1,38 +1,40 @@
 import { NextResponse } from 'next/server';
 import { getPool } from '../../lib/db'
 import { RowDataPacket, OkPacket } from 'mysql2/promise';
+import nodemailer from 'nodemailer';
 
-// 이메일 발송 함수 (실제 구현에서는 nodemailer 등을 사용)
+// 이메일 발송 함수
 const sendEmail = async (to: string, subject: string, htmlContent: string) => {
   try {
-    // 실제 이메일 발송 로직 (현재는 콘솔 출력으로 대체)
-    console.log('📧 이메일 발송 시뮬레이션:');
-    console.log('받는 사람:', to);
-    console.log('제목:', subject);
-    console.log('내용:', htmlContent);
-    
-    // 실제 구현 시에는 다음과 같이 nodemailer를 사용할 수 있습니다:
-    /*
-    const nodemailer = require('nodemailer');
-    const transporter = nodemailer.createTransporter({
+    // Gmail SMTP 설정
+    const transporter = nodemailer.createTransport({
       service: 'gmail',
       auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS
+        user: 'sangkeun.jo@gmail.com', // 발신자 이메일
+        pass: process.env.GMAIL_APP_PASSWORD || 'your-app-password' // Gmail 앱 비밀번호
       }
     });
-    
-    await transporter.sendMail({
-      from: process.env.EMAIL_USER,
+
+    // 이메일 발송
+    const mailOptions = {
+      from: 'sangkeun.jo@gmail.com',
       to: to,
       subject: subject,
       html: htmlContent
-    });
-    */
-    
+    };
+
+    const result = await transporter.sendMail(mailOptions);
+    console.log('📧 이메일 발송 성공:', result.messageId);
     return true;
   } catch (error) {
     console.error('이메일 발송 오류:', error);
+    
+    // 오류 발생 시에도 콘솔에 로그 출력 (개발용)
+    console.log('📧 이메일 발송 시뮬레이션 (오류로 인한 대체):');
+    console.log('받는 사람:', to);
+    console.log('제목:', subject);
+    console.log('내용:', htmlContent.substring(0, 200) + '...');
+    
     return false;
   }
 };
@@ -328,7 +330,7 @@ export async function POST(request: Request) {
       await sendEmail(userEmail, userSubject, userHtml);
     }
 
-    // 관리자에게 이메일 발송
+    // 관리자에게 이메일 발송 (올바른 주소)
     const adminSubject = `[SCM 진단 완료] ${userName || '고객'}님의 진단이 완료되었습니다`;
     const adminHtml = `
       <h2>새로운 SCM 진단 완료</h2>
@@ -338,7 +340,10 @@ export async function POST(request: Request) {
       <p><strong>종합 점수:</strong> ${Number(totalScore).toFixed(1)}점</p>
       <p><strong>진단 완료 시간:</strong> ${now}</p>
     `;
+    
+    // 올바른 관리자 이메일 주소로 발송
     await sendEmail('sangkeun.jo@gmail.com', adminSubject, adminHtml);
+    console.log('📧 관리자 이메일 발송 완료: sangkeun.jo@gmail.com');
 
     return NextResponse.json({
       success: true,

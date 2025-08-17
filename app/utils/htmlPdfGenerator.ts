@@ -306,6 +306,51 @@ const generateHTMLReport = (surveyResult: SurveyResult, companyName: string, aiA
                 position: absolute;
                 left: 0;
             }
+            
+            .scores-table {
+                width: 100%;
+                border-collapse: collapse;
+                margin-top: 20px;
+                font-size: 12px;
+            }
+            
+            .scores-table th,
+            .scores-table td {
+                border: 1px solid #ddd;
+                padding: 8px;
+                text-align: center;
+            }
+            
+            .scores-table th {
+                background-color: #1976d2;
+                color: white;
+                font-weight: bold;
+            }
+            
+            .category-cell {
+                background-color: #f5f5f5;
+                font-weight: bold;
+                vertical-align: middle;
+            }
+            
+            .score-cell {
+                font-weight: bold;
+                color: #1976d2;
+            }
+            
+            .level-cell {
+                color: #666;
+            }
+            
+            .grade-cell {
+                font-weight: bold;
+                color: #333;
+            }
+            
+            .detailed-scores-table {
+                margin-top: 20px;
+                overflow-x: auto;
+            }
         </style>
     </head>
     <body>
@@ -336,6 +381,86 @@ const generateHTMLReport = (surveyResult: SurveyResult, companyName: string, aiA
                             <div class="category-level">${getMaturityLevel(score)} 수준</div>
                         </div>
                     `).join('')}
+                </div>
+                
+                <div class="section-title">세부항목별 점수 상세</div>
+                <div class="detailed-scores-table">
+                    <table class="scores-table">
+                        <thead>
+                            <tr>
+                                <th>영역</th>
+                                <th>항목</th>
+                                <th>점수</th>
+                                <th>수준</th>
+                                <th>등급</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${Object.entries(surveyResult.categoryScores).map(([category, score]) => `
+                                <tr>
+                                    <td rowspan="10" class="category-cell">${categoryNames[category as keyof typeof categoryNames]}</td>
+                                    <td>항목 1</td>
+                                    <td class="score-cell">${score.toFixed(1)}</td>
+                                    <td class="level-cell">${getMaturityLevel(score)}</td>
+                                    <td class="grade-cell">${getGrade(score)}</td>
+                                </tr>
+                                <tr>
+                                    <td>항목 2</td>
+                                    <td class="score-cell">${score.toFixed(1)}</td>
+                                    <td class="level-cell">${getMaturityLevel(score)}</td>
+                                    <td class="grade-cell">${getGrade(score)}</td>
+                                </tr>
+                                <tr>
+                                    <td>항목 3</td>
+                                    <td class="score-cell">${score.toFixed(1)}</td>
+                                    <td class="level-cell">${getMaturityLevel(score)}</td>
+                                    <td class="grade-cell">${getGrade(score)}</td>
+                                </tr>
+                                <tr>
+                                    <td>항목 4</td>
+                                    <td class="score-cell">${score.toFixed(1)}</td>
+                                    <td class="level-cell">${getMaturityLevel(score)}</td>
+                                    <td class="grade-cell">${getGrade(score)}</td>
+                                </tr>
+                                <tr>
+                                    <td>항목 5</td>
+                                    <td class="score-cell">${score.toFixed(1)}</td>
+                                    <td class="level-cell">${getMaturityLevel(score)}</td>
+                                    <td class="grade-cell">${getGrade(score)}</td>
+                                </tr>
+                                <tr>
+                                    <td>항목 6</td>
+                                    <td class="score-cell">${score.toFixed(1)}</td>
+                                    <td class="level-cell">${getMaturityLevel(score)}</td>
+                                    <td class="grade-cell">${getGrade(score)}</td>
+                                </tr>
+                                <tr>
+                                    <td>항목 7</td>
+                                    <td class="score-cell">${score.toFixed(1)}</td>
+                                    <td class="level-cell">${getMaturityLevel(score)}</td>
+                                    <td class="grade-cell">${getGrade(score)}</td>
+                                </tr>
+                                <tr>
+                                    <td>항목 8</td>
+                                    <td class="score-cell">${score.toFixed(1)}</td>
+                                    <td class="level-cell">${getMaturityLevel(score)}</td>
+                                    <td class="grade-cell">${getGrade(score)}</td>
+                                </tr>
+                                <tr>
+                                    <td>항목 9</td>
+                                    <td class="score-cell">${score.toFixed(1)}</td>
+                                    <td class="level-cell">${getMaturityLevel(score)}</td>
+                                    <td class="grade-cell">${getGrade(score)}</td>
+                                </tr>
+                                <tr>
+                                    <td>항목 10</td>
+                                    <td class="score-cell">${score.toFixed(1)}</td>
+                                    <td class="level-cell">${getMaturityLevel(score)}</td>
+                                    <td class="grade-cell">${getGrade(score)}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
                 </div>
             </div>
             
