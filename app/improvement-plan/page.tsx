@@ -63,13 +63,13 @@ const categoryNames = {
   integration: '통합 관리'
 };
 
-const priorityColors = {
+const priorityColors: Record<'high' | 'medium' | 'low', 'error' | 'warning' | 'success'> = {
   high: 'error',
   medium: 'warning',
   low: 'success'
 };
 
-const statusColors = {
+const statusColors: Record<'pending' | 'in-progress' | 'completed', 'default' | 'primary' | 'success'> = {
   pending: 'default',
   'in-progress': 'primary',
   completed: 'success'
@@ -84,7 +84,7 @@ export default function ImprovementPlanPage() {
     category: '',
     title: '',
     description: '',
-    priority: 'medium' as const,
+    priority: 'medium' as 'high' | 'medium' | 'low',
     startDate: '',
     endDate: '',
     assignedTo: '',
@@ -187,7 +187,7 @@ export default function ImprovementPlanPage() {
         ? { 
             ...task, 
             progress: newProgress,
-            status: newProgress === 100 ? 'completed' : newProgress > 0 ? 'in-progress' : 'pending'
+            status: (newProgress === 100 ? 'completed' : newProgress > 0 ? 'in-progress' : 'pending') as 'pending' | 'in-progress' | 'completed'
           }
         : task
     );
