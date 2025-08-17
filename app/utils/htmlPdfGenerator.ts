@@ -367,6 +367,12 @@ const generateHTMLReport = (surveyResult: SurveyResult, companyName: string, aiA
                 border-left: 4px solid #1976d2;
                 border-radius: 4px;
             }
+            
+            .detailed-scores-page {
+                height: 1123px;
+                padding: 40px;
+                page-break-after: always;
+            }
         </style>
     </head>
     <body>
@@ -399,7 +405,11 @@ const generateHTMLReport = (surveyResult: SurveyResult, companyName: string, aiA
                     `).join('')}
                 </div>
                 
-                <div class="section-title">세부항목별 점수 상세</div>
+            </div>
+            
+            <!-- 세부항목별 점수 상세 페이지 1 (계획 관리 + 조달 관리) -->
+            <div class="detailed-scores-page">
+                <div class="page-title">세부항목별 점수 상세 (1/3)</div>
                 
                 <!-- 계획 관리 세부항목 -->
                 <div class="category-detail-section">
@@ -450,7 +460,12 @@ const generateHTMLReport = (surveyResult: SurveyResult, companyName: string, aiA
                         </tbody>
                     </table>
                 </div>
+            </div>
 
+            <!-- 세부항목별 점수 상세 페이지 2 (재고 관리 + 생산 관리) -->
+            <div class="detailed-scores-page">
+                <div class="page-title">세부항목별 점수 상세 (2/3)</div>
+                
                 <!-- 재고 관리 세부항목 -->
                 <div class="category-detail-section">
                     <h3 class="category-detail-title">재고 관리 (10개 항목)</h3>
@@ -500,7 +515,12 @@ const generateHTMLReport = (surveyResult: SurveyResult, companyName: string, aiA
                         </tbody>
                     </table>
                 </div>
+            </div>
 
+            <!-- 세부항목별 점수 상세 페이지 3 (물류 관리 + 통합 관리) -->
+            <div class="detailed-scores-page">
+                <div class="page-title">세부항목별 점수 상세 (3/3)</div>
+                
                 <!-- 물류 관리 세부항목 -->
                 <div class="category-detail-section">
                     <h3 class="category-detail-title">물류 관리 (10개 항목)</h3>
@@ -550,6 +570,7 @@ const generateHTMLReport = (surveyResult: SurveyResult, companyName: string, aiA
                         </tbody>
                     </table>
                 </div>
+            </div>
             </div>
             
             <!-- 종합 분석 페이지 -->
@@ -655,7 +676,7 @@ export const generateHTMLToPDF = async (surveyResult: SurveyResult, companyName:
     await new Promise(resolve => setTimeout(resolve, 3000));
 
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
-    const sections = ['.cover-section', '.category-analysis-page', '.analysis-page', '.ai-analysis-page', '.recommendations-page', '.action-plan-page'].filter(selector => {
+    const sections = ['.cover-section', '.category-analysis-page', '.detailed-scores-page', '.analysis-page', '.ai-analysis-page', '.recommendations-page', '.action-plan-page'].filter(selector => {
       if (selector === '.ai-analysis-page' && !aiAnalysis) {
         return false;
       }

@@ -8,11 +8,15 @@
     "dev:fast": "cross-env NODE_OPTIONS=--max-old-space-size=8192 next dev --port 3000",
     "dev:clean": "npm run clean && npm run dev:safe",
     "build": "next build",
+    "build:safe": "cross-env NODE_OPTIONS=--max-old-space-size=4096 next build",
+    "build:clean": "npm run clean && npm run build:safe",
+    "build:force": "npm run clean && cross-env NODE_OPTIONS=--max-old-space-size=8192 next build",
     "start": "next start",
     "lint": "next lint",
     "clean": "rimraf .next",
     "clean:cache": "rimraf .next && rimraf node_modules/.cache",
-    "clean:all": "rimraf .next && rimraf node_modules"
+    "clean:all": "rimraf .next && rimraf node_modules",
+    "kill:node": "taskkill /f /im node.exe 2>nul || echo No node processes found"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",
