@@ -351,6 +351,22 @@ const generateHTMLReport = (surveyResult: SurveyResult, companyName: string, aiA
                 margin-top: 20px;
                 overflow-x: auto;
             }
+            
+            .category-detail-section {
+                margin-bottom: 30px;
+                page-break-inside: avoid;
+            }
+            
+            .category-detail-title {
+                font-size: 18px;
+                font-weight: 600;
+                color: #1976d2;
+                margin-bottom: 15px;
+                padding: 10px;
+                background-color: #f5f5f5;
+                border-left: 4px solid #1976d2;
+                border-radius: 4px;
+            }
         </style>
     </head>
     <body>
@@ -384,11 +400,13 @@ const generateHTMLReport = (surveyResult: SurveyResult, companyName: string, aiA
                 </div>
                 
                 <div class="section-title">세부항목별 점수 상세</div>
-                <div class="detailed-scores-table">
+                
+                <!-- 계획 관리 세부항목 -->
+                <div class="category-detail-section">
+                    <h3 class="category-detail-title">계획 관리 (10개 항목)</h3>
                     <table class="scores-table">
                         <thead>
                             <tr>
-                                <th>영역</th>
                                 <th>항목</th>
                                 <th>점수</th>
                                 <th>수준</th>
@@ -396,67 +414,137 @@ const generateHTMLReport = (surveyResult: SurveyResult, companyName: string, aiA
                             </tr>
                         </thead>
                         <tbody>
-                            ${Object.entries(surveyResult.categoryScores).map(([category, score]) => `
+                            ${Array.from({length: 10}, (_, i) => `
                                 <tr>
-                                    <td rowspan="10" class="category-cell">${categoryNames[category as keyof typeof categoryNames]}</td>
-                                    <td>항목 1</td>
-                                    <td class="score-cell">${score.toFixed(1)}</td>
-                                    <td class="level-cell">${getMaturityLevel(score)}</td>
-                                    <td class="grade-cell">${getGrade(score)}</td>
+                                    <td>계획 관리 항목 ${i + 1}</td>
+                                    <td class="score-cell">${surveyResult.categoryScores.planning.toFixed(1)}</td>
+                                    <td class="level-cell">${getMaturityLevel(surveyResult.categoryScores.planning)}</td>
+                                    <td class="grade-cell">${getGrade(surveyResult.categoryScores.planning)}</td>
                                 </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 조달 관리 세부항목 -->
+                <div class="category-detail-section">
+                    <h3 class="category-detail-title">조달 관리 (10개 항목)</h3>
+                    <table class="scores-table">
+                        <thead>
+                            <tr>
+                                <th>항목</th>
+                                <th>점수</th>
+                                <th>수준</th>
+                                <th>등급</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${Array.from({length: 10}, (_, i) => `
                                 <tr>
-                                    <td>항목 2</td>
-                                    <td class="score-cell">${score.toFixed(1)}</td>
-                                    <td class="level-cell">${getMaturityLevel(score)}</td>
-                                    <td class="grade-cell">${getGrade(score)}</td>
+                                    <td>조달 관리 항목 ${i + 1}</td>
+                                    <td class="score-cell">${surveyResult.categoryScores.procurement.toFixed(1)}</td>
+                                    <td class="level-cell">${getMaturityLevel(surveyResult.categoryScores.procurement)}</td>
+                                    <td class="grade-cell">${getGrade(surveyResult.categoryScores.procurement)}</td>
                                 </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 재고 관리 세부항목 -->
+                <div class="category-detail-section">
+                    <h3 class="category-detail-title">재고 관리 (10개 항목)</h3>
+                    <table class="scores-table">
+                        <thead>
+                            <tr>
+                                <th>항목</th>
+                                <th>점수</th>
+                                <th>수준</th>
+                                <th>등급</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${Array.from({length: 10}, (_, i) => `
                                 <tr>
-                                    <td>항목 3</td>
-                                    <td class="score-cell">${score.toFixed(1)}</td>
-                                    <td class="level-cell">${getMaturityLevel(score)}</td>
-                                    <td class="grade-cell">${getGrade(score)}</td>
+                                    <td>재고 관리 항목 ${i + 1}</td>
+                                    <td class="score-cell">${surveyResult.categoryScores.inventory.toFixed(1)}</td>
+                                    <td class="level-cell">${getMaturityLevel(surveyResult.categoryScores.inventory)}</td>
+                                    <td class="grade-cell">${getGrade(surveyResult.categoryScores.inventory)}</td>
                                 </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 생산 관리 세부항목 -->
+                <div class="category-detail-section">
+                    <h3 class="category-detail-title">생산 관리 (10개 항목)</h3>
+                    <table class="scores-table">
+                        <thead>
+                            <tr>
+                                <th>항목</th>
+                                <th>점수</th>
+                                <th>수준</th>
+                                <th>등급</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${Array.from({length: 10}, (_, i) => `
                                 <tr>
-                                    <td>항목 4</td>
-                                    <td class="score-cell">${score.toFixed(1)}</td>
-                                    <td class="level-cell">${getMaturityLevel(score)}</td>
-                                    <td class="grade-cell">${getGrade(score)}</td>
+                                    <td>생산 관리 항목 ${i + 1}</td>
+                                    <td class="score-cell">${surveyResult.categoryScores.production.toFixed(1)}</td>
+                                    <td class="level-cell">${getMaturityLevel(surveyResult.categoryScores.production)}</td>
+                                    <td class="grade-cell">${getGrade(surveyResult.categoryScores.production)}</td>
                                 </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 물류 관리 세부항목 -->
+                <div class="category-detail-section">
+                    <h3 class="category-detail-title">물류 관리 (10개 항목)</h3>
+                    <table class="scores-table">
+                        <thead>
+                            <tr>
+                                <th>항목</th>
+                                <th>점수</th>
+                                <th>수준</th>
+                                <th>등급</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${Array.from({length: 10}, (_, i) => `
                                 <tr>
-                                    <td>항목 5</td>
-                                    <td class="score-cell">${score.toFixed(1)}</td>
-                                    <td class="level-cell">${getMaturityLevel(score)}</td>
-                                    <td class="grade-cell">${getGrade(score)}</td>
+                                    <td>물류 관리 항목 ${i + 1}</td>
+                                    <td class="score-cell">${surveyResult.categoryScores.logistics.toFixed(1)}</td>
+                                    <td class="level-cell">${getMaturityLevel(surveyResult.categoryScores.logistics)}</td>
+                                    <td class="grade-cell">${getGrade(surveyResult.categoryScores.logistics)}</td>
                                 </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- 통합 관리 세부항목 -->
+                <div class="category-detail-section">
+                    <h3 class="category-detail-title">통합 관리 (10개 항목)</h3>
+                    <table class="scores-table">
+                        <thead>
+                            <tr>
+                                <th>항목</th>
+                                <th>점수</th>
+                                <th>수준</th>
+                                <th>등급</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${Array.from({length: 10}, (_, i) => `
                                 <tr>
-                                    <td>항목 6</td>
-                                    <td class="score-cell">${score.toFixed(1)}</td>
-                                    <td class="level-cell">${getMaturityLevel(score)}</td>
-                                    <td class="grade-cell">${getGrade(score)}</td>
-                                </tr>
-                                <tr>
-                                    <td>항목 7</td>
-                                    <td class="score-cell">${score.toFixed(1)}</td>
-                                    <td class="level-cell">${getMaturityLevel(score)}</td>
-                                    <td class="grade-cell">${getGrade(score)}</td>
-                                </tr>
-                                <tr>
-                                    <td>항목 8</td>
-                                    <td class="score-cell">${score.toFixed(1)}</td>
-                                    <td class="level-cell">${getMaturityLevel(score)}</td>
-                                    <td class="grade-cell">${getGrade(score)}</td>
-                                </tr>
-                                <tr>
-                                    <td>항목 9</td>
-                                    <td class="score-cell">${score.toFixed(1)}</td>
-                                    <td class="level-cell">${getMaturityLevel(score)}</td>
-                                    <td class="grade-cell">${getGrade(score)}</td>
-                                </tr>
-                                <tr>
-                                    <td>항목 10</td>
-                                    <td class="score-cell">${score.toFixed(1)}</td>
-                                    <td class="level-cell">${getMaturityLevel(score)}</td>
-                                    <td class="grade-cell">${getGrade(score)}</td>
+                                    <td>통합 관리 항목 ${i + 1}</td>
+                                    <td class="score-cell">${surveyResult.categoryScores.integration.toFixed(1)}</td>
+                                    <td class="level-cell">${getMaturityLevel(surveyResult.categoryScores.integration)}</td>
+                                    <td class="grade-cell">${getGrade(surveyResult.categoryScores.integration)}</td>
                                 </tr>
                             `).join('')}
                         </tbody>
