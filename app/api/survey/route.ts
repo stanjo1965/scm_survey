@@ -12,7 +12,7 @@ const sendEmail = async (to: string, subject: string, htmlContent: string) => {
       secure: false,
       auth: {
         user: 'sangkeun.jo@gmail.com', // 발신자 이메일
-        pass: process.env.NEXT_PUBLIC_GMAIL_APP_PASSWORD || 'your-app-password' // Gmail 앱 비밀번호
+        pass: process.env.GMAIL_APP_PASSWORD || 'your-app-password' // Gmail 앱 비밀번호
       },
         tls: {
           rejectUnauthorized: false
