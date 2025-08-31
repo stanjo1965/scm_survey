@@ -153,12 +153,14 @@ useEffect(() => {
       let companyId = 'guest-company';
       let userName = '게스트';
       let userEmail = '';
+      let userPhone = '';
       if (userInfo) {
         const parsedUserInfo = JSON.parse(userInfo);
         userId = `user-${Date.now()}`;
         companyId = parsedUserInfo.company || 'guest-company';
         userName = parsedUserInfo.name || '게스트';
         userEmail = parsedUserInfo.email || '';
+        userPhone = parsedUserInfo.phone || '';
       }
       const response = await fetch('/api/survey', {
         method: 'POST',
@@ -170,6 +172,7 @@ useEffect(() => {
           companyId: companyId,
           userName: userName,
           userEmail: userEmail,
+          userPhone: userPhone,
           answers: answers
         }),
       });
