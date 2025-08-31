@@ -28,13 +28,6 @@ const generateHTMLReport = (surveyResult: SurveyResult, companyName: string, aiA
     integration: '통합 관리'
   };
 
-  console.log(detailedScores?.planning[0].score)
-  console.log(detailedScores?.procurement[0].score)
-  console.log(detailedScores?.inventory[0].score)
-  console.log(detailedScores?.production[0].score)
-  console.log(detailedScores?.logistics[0].score)
-  console.log(detailedScores?.integration[0].score)
-
   const getMaturityLevel = (score: number): string => {
     if (score >= 4.5) return '최적화';
     if (score >= 3.5) return '표준화';

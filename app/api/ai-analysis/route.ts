@@ -3,8 +3,8 @@ import { NextResponse } from 'next/server';
 // OpenAI API 호출 함수
 const callOpenAI = async (prompt: string) => {
   // OpenAI API 키 설정 (환경 변수 또는 기본값)
-  const apiKey = process.env.OPENAI_API_KEY || 'k-proj-MA2U-IedIgQl85_nwt12joeh8dq6t6YHlfpXCeaf9-VXSDwPAdKEECdDhAENemBuKGtIPoj2sWT3BlbkFJ84stsrH4jLIK8Z1fqrNldaqM0me59BE5ClzrOKhjmFKIzkPLlhju_kOONuNr5HruCdfM2LarAA';
-  
+  const apiKey = process.env.OPENAI_API_KEY || null;
+  console.log("OpenAI API 키:", apiKey);
   // OpenAI API 키가 없으면 기본 분석 제공
   if (!apiKey) {
     console.log('OpenAI API 키가 설정되지 않아 기본 분석을 제공합니다.');
@@ -12,14 +12,14 @@ const callOpenAI = async (prompt: string) => {
   }
 
   try {
-          const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${apiKey}`
         },
       body: JSON.stringify({
-        model: 'gpt-4',
+        model: 'gpt-4o-mini',
         messages: [
           {
             role: 'system',
@@ -37,6 +37,7 @@ const callOpenAI = async (prompt: string) => {
 
     if (!response.ok) {
       console.log('OpenAI API 호출 실패, 기본 분석을 제공합니다.');
+      console.log("response.status:", response.status);
       return generateDefaultAnalysis(prompt);
     }
 
