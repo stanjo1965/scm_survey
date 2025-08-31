@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getPool } from '../../lib/db'
-import { RowDataPacket, OkPacket } from 'mysql2/promise';
+import { supabase } from '../../lib/supabase';
 import nodemailer from 'nodemailer';
 
 // 이메일 발송 함수
@@ -141,7 +140,6 @@ const generateEmailTemplate = (userInfo: any, resultData: any) => {
 
 export async function POST(request: Request) {
   try {
-    const pool = await getPool();
     const { userId, companyId, userName, userEmail, answers } = await request.json();
 
     if (!userId || !companyId || !answers) {
@@ -154,40 +152,53 @@ export async function POST(request: Request) {
     const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
     
     // 기존 결과 확인
-    const [existingResults] = await pool.execute(
-      'SELECT id FROM survey_results WHERE user_id = ? AND company_id = ?',
-      [userId, companyId]
-    ) as [RowDataPacket[], any];
+    const { data: existingResults, error: selectError } = await supabase
+      .from('survey_results')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('company_id', companyId);
 
     let resultId: number;
     
-    if (existingResults.length > 0) {
+  if (Array.isArray(existingResults) && existingResults.length > 0) {
       // 기존 결과 업데이트
       resultId = existingResults[0].id;
-      await pool.execute(
-        'UPDATE survey_results SET updated_at = ? WHERE id = ?',
-        [now, resultId]
-      );
-      // 기존 답변 삭제
-      await pool.execute(
-        'DELETE FROM survey_answers WHERE survey_result_id = ?',
-        [resultId]
-      );
+      await supabase
+        .from('survey_results')
+        .update({ 
+          updated_at: new Date().toISOString(),
+          total_score: null // 임시, 아래에서 실제 점수로 업데이트
+        })
+        .eq('id', resultId);
+      await supabase
+        .from('survey_answers')
+        .delete()
+        .eq('survey_result_id', resultId);
     } else {
       // 새 결과 생성
-      const [result] = await pool.execute(
-        'INSERT INTO survey_results (user_id, company_id, created_at, updated_at) VALUES (?, ?, ?, ?)',
-        [userId, companyId, now, now]
-      ) as [OkPacket, any];
-      resultId = result.insertId;
+      const { data: insertResult, error: insertError } = await supabase
+        .from('survey_results')
+        .insert({
+          user_id: userId,
+          company_id: companyId,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          total_score: null // 임시, 아래에서 실제 점수로 업데이트
+        })
+        .select('id');
+      resultId = insertResult?.[0]?.id;
     }
+    // 전체 평균 점수 계산 후 survey_results에 total_score 업데이트
+  // ...existing code...
 
     // 답변 저장
     for (const [questionId, answer] of Object.entries(answers)) {
-      await pool.execute(
-        'INSERT INTO survey_answers (survey_result_id, question_id, answer_value, created_at) VALUES (?, ?, ?, ?)',
-        [resultId, questionId, answer, now]
-      );
+      await supabase.from('survey_answers').insert({
+        survey_result_id: resultId,
+        question_id: questionId,
+        answer_value: answer,
+        created_at: new Date().toISOString()
+      });
     }
 
     // 설문 질문 데이터 (가중치 정보 포함)
@@ -301,6 +312,12 @@ export async function POST(request: Request) {
 
     // 전체 평균 점수 계산
     const totalScore = Object.values(categoryScores).reduce((sum, score) => sum + score, 0) / 6;
+
+    // 전체 평균 점수 계산 후 survey_results에 total_score 업데이트
+    await supabase
+      .from('survey_results')
+      .update({ total_score: totalScore })
+      .eq('id', resultId);
     
     // 디버깅을 위한 점수 출력
     console.log('=== 진단 점수 계산 결과 ===');
@@ -311,10 +328,13 @@ export async function POST(request: Request) {
 
     // 카테고리 분석 결과 저장
     for (const [category, score] of Object.entries(categoryScores)) {
-      await pool.execute(
-        'INSERT INTO category_analysis (survey_result_id, category, score, max_score, created_at) VALUES (?, ?, ?, ?, ?)',
-        [resultId, category, score, 5, now]
-      );
+      await supabase.from('category_analysis').insert({
+        survey_result_id: resultId,
+        category,
+        score,
+        max_score: 5,
+        created_at: new Date().toISOString()
+      });
     }
 
     // 이메일 발송
