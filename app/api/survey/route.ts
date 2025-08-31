@@ -155,7 +155,7 @@ export async function POST(request: Request) {
     const { data: existingResults, error: selectError } = await supabase
       .from('survey_results')
       .select('id')
-      .eq('user_id', userId)
+      .eq('user_email', userEmail)
       .eq('company_id', companyId);
 
     let resultId: number;
@@ -163,13 +163,14 @@ export async function POST(request: Request) {
   if (Array.isArray(existingResults) && existingResults.length > 0) {
       // 기존 결과 업데이트
       resultId = existingResults[0].id;
-      await supabase
-        .from('survey_results')
-        .update({ 
-          updated_at: new Date().toISOString(),
-          total_score: null // 임시, 아래에서 실제 점수로 업데이트
-        })
-        .eq('id', resultId);
+        await supabase
+          .from('survey_results')
+          .update({ 
+            updated_at: new Date().toISOString(),
+            total_score: null, // 임시, 아래에서 실제 점수로 업데이트
+            user_name: userName
+          })
+          .eq('id', resultId);
       await supabase
         .from('survey_answers')
         .delete()
@@ -179,8 +180,9 @@ export async function POST(request: Request) {
       const { data: insertResult, error: insertError } = await supabase
         .from('survey_results')
         .insert({
-          user_id: userId,
+          user_email: userEmail,
           company_id: companyId,
+            user_name: userName,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString(),
           total_score: null // 임시, 아래에서 실제 점수로 업데이트
