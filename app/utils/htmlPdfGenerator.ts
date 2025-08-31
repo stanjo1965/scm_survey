@@ -1,5 +1,6 @@
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { supabase } from '../lib/supabase';
 
 interface SurveyResult {
   id: string;
@@ -17,7 +18,7 @@ interface SurveyResult {
   createdAt: string;
 }
 
-const generateHTMLReport = (surveyResult: SurveyResult, companyName: string, aiAnalysis?: string): string => {
+const generateHTMLReport = (surveyResult: SurveyResult, companyName: string, aiAnalysis?: string, detailedScores?: Record<string, Array<{ questionId: string; question: string; score: number; weight: number }>>): string => {
   const categoryNames = {
     planning: '계획 관리',
     procurement: '조달 관리',
@@ -26,6 +27,13 @@ const generateHTMLReport = (surveyResult: SurveyResult, companyName: string, aiA
     logistics: '물류 관리',
     integration: '통합 관리'
   };
+
+  console.log(detailedScores?.planning[0].score)
+  console.log(detailedScores?.procurement[0].score)
+  console.log(detailedScores?.inventory[0].score)
+  console.log(detailedScores?.production[0].score)
+  console.log(detailedScores?.logistics[0].score)
+  console.log(detailedScores?.integration[0].score)
 
   const getMaturityLevel = (score: number): string => {
     if (score >= 4.5) return '최적화';
@@ -407,171 +415,37 @@ const generateHTMLReport = (surveyResult: SurveyResult, companyName: string, aiA
                 
             </div>
             
-            <!-- 세부항목별 점수 상세 페이지 1 (계획 관리 + 조달 관리) -->
-            <div class="detailed-scores-page">
-                <div class="page-title">세부항목별 점수 상세 (1/3)</div>
-                
-                <!-- 계획 관리 세부항목 -->
+            <!-- 세부항목별 점수 상세 페이지 -->
+            ${['planning', 'procurement', 'inventory', 'production', 'logistics', 'integration'].map((catKey, idx) => `
+              <div class="detailed-scores-page">
+                <div class="page-title">${categoryNames[catKey as keyof typeof categoryNames]} 세부항목별 점수 상세 (${idx + 1}/6)</div>
                 <div class="category-detail-section">
-                    <h3 class="category-detail-title">계획 관리 (10개 항목)</h3>
-                    <table class="scores-table">
-                        <thead>
-                            <tr>
-                                <th>항목</th>
-                                <th>점수</th>
-                                <th>수준</th>
-                                <th>등급</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${Array.from({length: 10}, (_, i) => `
-                                <tr>
-                                    <td>계획 관리 항목 ${i + 1}</td>
-                                    <td class="score-cell">${surveyResult.categoryScores.planning.toFixed(1)}</td>
-                                    <td class="level-cell">${getMaturityLevel(surveyResult.categoryScores.planning)}</td>
-                                    <td class="grade-cell">${getGrade(surveyResult.categoryScores.planning)}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
+                  <h3 class="category-detail-title">${categoryNames[catKey as keyof typeof categoryNames]}</h3>
+                  <table class="scores-table">
+                    <thead>
+                      <tr>
+                        <th>질문</th>
+                        <th>점수</th>
+                        <th>가중치</th>
+                        <th>수준</th>
+                        <th>등급</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${detailedScores?.[catKey].map((item) => `
+                        <tr>
+                          <td>${item.question}</td>
+                          <td class="score-cell">${item.score}</td>
+                          <td>${item.weight}</td>
+                          <td class="level-cell">${getMaturityLevel(item.score)}</td>
+                          <td class="grade-cell">${getGrade(item.score)}</td>
+                        </tr>
+                      `).join('')}
+                    </tbody>
+                  </table>
                 </div>
-
-                <!-- 조달 관리 세부항목 -->
-                <div class="category-detail-section">
-                    <h3 class="category-detail-title">조달 관리 (10개 항목)</h3>
-                    <table class="scores-table">
-                        <thead>
-                            <tr>
-                                <th>항목</th>
-                                <th>점수</th>
-                                <th>수준</th>
-                                <th>등급</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${Array.from({length: 10}, (_, i) => `
-                                <tr>
-                                    <td>조달 관리 항목 ${i + 1}</td>
-                                    <td class="score-cell">${surveyResult.categoryScores.procurement.toFixed(1)}</td>
-                                    <td class="level-cell">${getMaturityLevel(surveyResult.categoryScores.procurement)}</td>
-                                    <td class="grade-cell">${getGrade(surveyResult.categoryScores.procurement)}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- 세부항목별 점수 상세 페이지 2 (재고 관리 + 생산 관리) -->
-            <div class="detailed-scores-page">
-                <div class="page-title">세부항목별 점수 상세 (2/3)</div>
-                
-                <!-- 재고 관리 세부항목 -->
-                <div class="category-detail-section">
-                    <h3 class="category-detail-title">재고 관리 (10개 항목)</h3>
-                    <table class="scores-table">
-                        <thead>
-                            <tr>
-                                <th>항목</th>
-                                <th>점수</th>
-                                <th>수준</th>
-                                <th>등급</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${Array.from({length: 10}, (_, i) => `
-                                <tr>
-                                    <td>재고 관리 항목 ${i + 1}</td>
-                                    <td class="score-cell">${surveyResult.categoryScores.inventory.toFixed(1)}</td>
-                                    <td class="level-cell">${getMaturityLevel(surveyResult.categoryScores.inventory)}</td>
-                                    <td class="grade-cell">${getGrade(surveyResult.categoryScores.inventory)}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- 생산 관리 세부항목 -->
-                <div class="category-detail-section">
-                    <h3 class="category-detail-title">생산 관리 (10개 항목)</h3>
-                    <table class="scores-table">
-                        <thead>
-                            <tr>
-                                <th>항목</th>
-                                <th>점수</th>
-                                <th>수준</th>
-                                <th>등급</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${Array.from({length: 10}, (_, i) => `
-                                <tr>
-                                    <td>생산 관리 항목 ${i + 1}</td>
-                                    <td class="score-cell">${surveyResult.categoryScores.production.toFixed(1)}</td>
-                                    <td class="level-cell">${getMaturityLevel(surveyResult.categoryScores.production)}</td>
-                                    <td class="grade-cell">${getGrade(surveyResult.categoryScores.production)}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- 세부항목별 점수 상세 페이지 3 (물류 관리 + 통합 관리) -->
-            <div class="detailed-scores-page">
-                <div class="page-title">세부항목별 점수 상세 (3/3)</div>
-                
-                <!-- 물류 관리 세부항목 -->
-                <div class="category-detail-section">
-                    <h3 class="category-detail-title">물류 관리 (10개 항목)</h3>
-                    <table class="scores-table">
-                        <thead>
-                            <tr>
-                                <th>항목</th>
-                                <th>점수</th>
-                                <th>수준</th>
-                                <th>등급</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${Array.from({length: 10}, (_, i) => `
-                                <tr>
-                                    <td>물류 관리 항목 ${i + 1}</td>
-                                    <td class="score-cell">${surveyResult.categoryScores.logistics.toFixed(1)}</td>
-                                    <td class="level-cell">${getMaturityLevel(surveyResult.categoryScores.logistics)}</td>
-                                    <td class="grade-cell">${getGrade(surveyResult.categoryScores.logistics)}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                </div>
-
-                <!-- 통합 관리 세부항목 -->
-                <div class="category-detail-section">
-                    <h3 class="category-detail-title">통합 관리 (10개 항목)</h3>
-                    <table class="scores-table">
-                        <thead>
-                            <tr>
-                                <th>항목</th>
-                                <th>점수</th>
-                                <th>수준</th>
-                                <th>등급</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${Array.from({length: 10}, (_, i) => `
-                                <tr>
-                                    <td>통합 관리 항목 ${i + 1}</td>
-                                    <td class="score-cell">${surveyResult.categoryScores.integration.toFixed(1)}</td>
-                                    <td class="level-cell">${getMaturityLevel(surveyResult.categoryScores.integration)}</td>
-                                    <td class="grade-cell">${getGrade(surveyResult.categoryScores.integration)}</td>
-                                </tr>
-                            `).join('')}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-            </div>
+              </div>
+            `).join('')}
             
             <!-- 종합 분석 페이지 -->
             <div class="analysis-page">
@@ -664,7 +538,9 @@ const generateHTMLReport = (surveyResult: SurveyResult, companyName: string, aiA
 
 export const generateHTMLToPDF = async (surveyResult: SurveyResult, companyName: string = '귀하의 회사', aiAnalysis?: string): Promise<void> => {
   try {
-    const htmlContent = generateHTMLReport(surveyResult, companyName, aiAnalysis);
+    // 상세 점수 데이터 가져오기
+    const detailedScores = await getCategoryQuestionScoresDetailed(surveyResult.id);
+    const htmlContent = generateHTMLReport(surveyResult, companyName, aiAnalysis, detailedScores);
     const tempDiv = document.createElement('div');
     tempDiv.innerHTML = htmlContent;
     tempDiv.style.position = 'absolute';
@@ -744,4 +620,49 @@ export const generateHTMLToPDF = async (surveyResult: SurveyResult, companyName:
     console.error('PDF 생성 중 오류 발생:', error);
     throw new Error('PDF 생성에 실패했습니다.');
   }
-}; 
+};
+
+export async function getCategoryQuestionScoresDetailed(surveyResultId: string) {
+  // 1. 모든 답변 조회
+  const { data: answers, error: answersError } = await supabase
+    .from('survey_answers')
+    .select('question_id, answer_value')
+    .eq('survey_result_id', surveyResultId);
+  if (answersError) throw answersError;
+
+  // 2. 모든 질문 정보 조회
+  const { data: questions, error: questionsError } = await supabase
+    .from('category_question')
+    .select('question_id, category_id, question, weight')
+    .eq('isactive', true);
+  if (questionsError) throw questionsError;
+
+  // 3. 모든 카테고리 정보 조회
+  const { data: categories, error: categoriesError } = await supabase
+    .from('category')
+    .select('id, key, title');
+  if (categoriesError) throw categoriesError;
+
+  // 4. category별 질문별 점수 배열 생성
+  const result: Record<string, Array<{ questionId: string; question: string; score: number; weight: number }>> = {};
+  for (const cat of categories) {
+    result[cat.key] = [];
+  }
+
+  for (const answer of answers) {
+    const question = questions.find(q => q.question_id === answer.question_id);
+    if (question) {
+      const category = categories.find(c => c.id === question.category_id);
+      if (category) {
+        result[category.key].push({
+          questionId: answer.question_id,
+          question: question.question,
+          score: answer.answer_value,
+          weight: question.weight
+        });
+      }
+    }
+  }
+
+  return result; // { planning: [{questionId, question, score, weight}, ...], ... }
+}
