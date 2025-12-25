@@ -94,9 +94,15 @@ export default function HomePage() {
       <Box sx={{ bgcolor: 'primary.main', color: 'white', py: 2 }}>
         <Container maxWidth="lg">
           <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="h6" component="div" sx={{ fontWeight: 'bold' }}>
-              SCM 성숙도 진단 시스템
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+              <Box sx={{ bgcolor: 'white', p: 0.5, borderRadius: 1, display: 'flex' }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/ksa_logo.png" alt="KSA Logo" style={{ height: '40px', width: 'auto' }} />
+              </Box>
+              <Typography variant="h6" component="div" sx={{ fontWeight: 'bold' }}>
+                SCM 성숙도 진단 시스템
+              </Typography>
+            </Box>
             <Stack direction="row" spacing={2}>
               <Button color="inherit" startIcon={<InfoIcon />} onClick={handleLearnMore}>
                 자세히 알아보기
@@ -128,23 +134,23 @@ export default function HomePage() {
                 체계적인 개선 방안을 제시합니다
               </Typography>
               <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                                 <Button
-                   variant="contained"
-                   size="large"
-                   onClick={handleStartSurvey}
-                   component="a"
-                   href="/survey/info"
-                   sx={{
-                     bgcolor: 'white',
-                     color: 'primary.main',
-                     px: 4,
-                     py: 1.5,
-                     textDecoration: 'none',
-                     '&:hover': { bgcolor: 'grey.100' }
-                   }}
-                 >
-                   진단 시작하기
-                 </Button>
+                <Button
+                  variant="contained"
+                  size="large"
+                  onClick={handleStartSurvey}
+                  component="a"
+                  href="/survey/info"
+                  sx={{
+                    bgcolor: 'white',
+                    color: 'primary.main',
+                    px: 4,
+                    py: 1.5,
+                    textDecoration: 'none',
+                    '&:hover': { bgcolor: 'grey.100' }
+                  }}
+                >
+                  진단 시작하기
+                </Button>
                 <Button
                   variant="outlined"
                   size="large"
@@ -162,18 +168,18 @@ export default function HomePage() {
               </Box>
             </Grid>
             <Grid item xs={12} md={6}>
-              <Card sx={{ 
-                bgcolor: '#f5f5f5', 
-                p: 3, 
+              <Card sx={{
+                bgcolor: '#f5f5f5',
+                p: 3,
                 borderRadius: 3,
                 border: '1px solid #e0e0e0'
               }}>
                 <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', mb: 3 }}>
                   SCM 프로세스 모델
                 </Typography>
-                <Box sx={{ 
-                  display: 'flex', 
-                  justifyContent: 'space-between', 
+                <Box sx={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
                   alignItems: 'center',
                   mb: 2
                 }}>
@@ -181,10 +187,10 @@ export default function HomePage() {
                     <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1 }}>
                       1 Plan
                     </Typography>
-                    <Box sx={{ 
-                      width: 60, 
-                      height: 30, 
-                      bgcolor: '#1976d2', 
+                    <Box sx={{
+                      width: 60,
+                      height: 30,
+                      bgcolor: '#1976d2',
                       borderRadius: '0 15px 15px 0',
                       display: 'flex',
                       alignItems: 'center',
@@ -199,10 +205,10 @@ export default function HomePage() {
                     <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1 }}>
                       2 Source
                     </Typography>
-                    <Box sx={{ 
-                      width: 60, 
-                      height: 30, 
-                      bgcolor: '#388e3c', 
+                    <Box sx={{
+                      width: 60,
+                      height: 30,
+                      bgcolor: '#388e3c',
                       borderRadius: '0 15px 15px 0',
                       display: 'flex',
                       alignItems: 'center',
@@ -217,10 +223,10 @@ export default function HomePage() {
                     <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1 }}>
                       3 Make
                     </Typography>
-                    <Box sx={{ 
-                      width: 60, 
-                      height: 30, 
-                      bgcolor: '#f57c00', 
+                    <Box sx={{
+                      width: 60,
+                      height: 30,
+                      bgcolor: '#f57c00',
                       borderRadius: '0 15px 15px 0',
                       display: 'flex',
                       alignItems: 'center',
@@ -235,10 +241,10 @@ export default function HomePage() {
                     <Typography variant="body2" sx={{ fontWeight: 'bold', mb: 1 }}>
                       4 Deliver
                     </Typography>
-                    <Box sx={{ 
-                      width: 60, 
-                      height: 30, 
-                      bgcolor: '#7b1fa2', 
+                    <Box sx={{
+                      width: 60,
+                      height: 30,
+                      bgcolor: '#7b1fa2',
                       borderRadius: '0 15px 15px 0',
                       display: 'flex',
                       alignItems: 'center',
@@ -294,17 +300,17 @@ export default function HomePage() {
               무료로 제공되는 SCM 성숙도 진단으로 귀사의 공급망 관리 수준을 확인하고<br />
               체계적인 개선 방안을 받아보세요
             </Typography>
-                         <Button
-               variant="contained"
-               size="large"
-               onClick={handleStartSurvey}
-               component="a"
-               href="/survey/info"
-               endIcon={<ArrowForwardIcon />}
-               sx={{ px: 6, py: 2, fontSize: '1.1rem', textDecoration: 'none' }}
-             >
-               무료 진단 시작하기
-             </Button>
+            <Button
+              variant="contained"
+              size="large"
+              onClick={handleStartSurvey}
+              component="a"
+              href="/survey/info"
+              endIcon={<ArrowForwardIcon />}
+              sx={{ px: 6, py: 2, fontSize: '1.1rem', textDecoration: 'none' }}
+            >
+              무료 진단 시작하기
+            </Button>
           </Box>
         </Container>
       </Box>
@@ -348,7 +354,7 @@ export default function HomePage() {
           </Grid>
           <Box sx={{ borderTop: 1, borderColor: 'rgba(255,255,255,0.2)', mt: 4, pt: 2, textAlign: 'center' }}>
             <Typography variant="body2" sx={{ opacity: 0.6 }}>
-              © 2024 SCM 성숙도 진단 시스템. All rights reserved.
+              © 2025 SCM 성숙도 진단 시스템. KSA 한국표준협회 All rights reserved.
             </Typography>
           </Box>
         </Container>
