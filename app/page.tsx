@@ -99,7 +99,7 @@ export default function HomePage() {
               <Button color="inherit" startIcon={<AssignmentIcon />} onClick={handleGoToImprovementPlan}>
                 개선계획 관리
               </Button>
-              <Button color="inherit" startIcon={<SettingsIcon />} onClick={() => router.push('/admin/settings')}>
+              <Button color="inherit" startIcon={<SettingsIcon />} onClick={() => router.push('/admin')}>
                 관리자 설정
               </Button>
               <Button color="inherit" startIcon={<ContactSupportIcon />} onClick={handleContactUs}>
