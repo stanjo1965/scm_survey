@@ -3,18 +3,9 @@ import html2canvas from 'html2canvas';
 import { supabase } from '../lib/supabase';
 
 interface SurveyResult {
-  id: string;
-  userId: string;
-  companyId: string;
+  id: string | number;
   totalScore: number;
-  categoryScores: {
-    planning: number;
-    procurement: number;
-    inventory: number;
-    production: number;
-    logistics: number;
-    integration: number;
-  };
+  categoryScores: Record<string, number>;
   createdAt: string;
 }
 

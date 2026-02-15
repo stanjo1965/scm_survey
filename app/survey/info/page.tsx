@@ -41,7 +41,6 @@ export default function SurveyInfoPage() {
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
-    // 에러 메시지 제거
     if (errors[field]) {
       setErrors(prev => ({ ...prev, [field]: '' }));
     }
@@ -76,37 +75,15 @@ export default function SurveyInfoPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    console.log('폼 제출 시도:', formData);
-    
+
     if (validateForm()) {
-      console.log('폼 검증 통과');
-      // 사용자 정보를 localStorage에 저장
       localStorage.setItem('userInfo', JSON.stringify(formData));
-      console.log('localStorage 저장 완료');
-      
-      // 진단 질문 페이지로 이동
-      try {
-        router.push('/survey/questions');
-        console.log('페이지 이동 시도');
-      } catch (error) {
-        console.error('페이지 이동 오류:', error);
-        // 대안: window.location 사용
-        window.location.href = '/survey/questions';
-      }
-    } else {
-      console.log('폼 검증 실패:', errors);
+      router.push('/survey/questions');
     }
   };
 
   const handleSkip = () => {
-    console.log('건너뛰기 버튼 클릭');
-    // 정보 입력을 건너뛰고 바로 진단 질문 페이지로 이동
-    try {
-      router.push('/survey/questions');
-    } catch (error) {
-      console.error('페이지 이동 오류:', error);
-      window.location.href = '/survey/questions';
-    }
+    router.push('/survey/questions');
   };
 
   return (
@@ -160,7 +137,7 @@ export default function SurveyInfoPage() {
                 기본 정보 입력
               </Typography>
             </Box>
-            
+
             <Alert severity="info" sx={{ mb: 3 }}>
               <Typography variant="body2">
                 <strong>입력하신 정보는 다음과 같이 활용됩니다:</strong><br />
@@ -257,9 +234,7 @@ export default function SurveyInfoPage() {
                   variant="outlined"
                   size="large"
                   onClick={handleSkip}
-                  component="a"
-                  href="/survey/questions"
-                  sx={{ px: 4, py: 1.5, textDecoration: 'none' }}
+                  sx={{ px: 4, py: 1.5 }}
                 >
                   건너뛰기
                 </Button>
@@ -280,7 +255,7 @@ export default function SurveyInfoPage() {
         {/* Additional Info */}
         <Paper sx={{ p: 3, bgcolor: 'grey.50' }}>
           <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold', color: 'primary.main' }}>
-            💡 정보 입력의 장점
+            정보 입력의 장점
           </Typography>
           <Box component="ul" sx={{ pl: 2, mb: 0 }}>
             <Typography component="li" variant="body2" sx={{ mb: 1 }}>
@@ -300,4 +275,4 @@ export default function SurveyInfoPage() {
       </Container>
     </Box>
   );
-} 
+}

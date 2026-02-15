@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   Box,
@@ -8,9 +7,7 @@ import {
   Typography,
   Button,
   Card,
-  CardContent,
   Grid,
-  Paper,
   Chip,
   Stack
 } from '@mui/material';
@@ -32,15 +29,7 @@ export default function HomePage() {
   const router = useRouter();
 
   const handleStartSurvey = () => {
-    console.log('진단 시작 버튼 클릭됨');
-    try {
-      // 정보 입력 페이지로 이동
-      router.push('/survey/info');
-    } catch (error) {
-      console.error('페이지 이동 오류:', error);
-      // 대안: window.location 사용
-      window.location.href = '/survey/info';
-    }
+    router.push('/survey/info');
   };
 
   const handleLearnMore = () => {
@@ -138,14 +127,11 @@ export default function HomePage() {
                   variant="contained"
                   size="large"
                   onClick={handleStartSurvey}
-                  component="a"
-                  href="/survey/info"
                   sx={{
                     bgcolor: 'white',
                     color: 'primary.main',
                     px: 4,
                     py: 1.5,
-                    textDecoration: 'none',
                     '&:hover': { bgcolor: 'grey.100' }
                   }}
                 >
@@ -304,10 +290,8 @@ export default function HomePage() {
               variant="contained"
               size="large"
               onClick={handleStartSurvey}
-              component="a"
-              href="/survey/info"
               endIcon={<ArrowForwardIcon />}
-              sx={{ px: 6, py: 2, fontSize: '1.1rem', textDecoration: 'none' }}
+              sx={{ px: 6, py: 2, fontSize: '1.1rem' }}
             >
               무료 진단 시작하기
             </Button>
@@ -361,4 +345,4 @@ export default function HomePage() {
       </Box>
     </Box>
   );
-} 
+}

@@ -5,46 +5,41 @@ import nodemailer from 'nodemailer';
 // 이메일 발송 함수
 const sendEmail = async (to: string, subject: string, htmlContent: string) => {
   try {
-    // Gmail SMTP 설정
     const transporter = nodemailer.createTransport({
       service: 'gmail',
-      port:587,
+      port: 587,
       secure: false,
       auth: {
-        user: 'sangkeun.jo@gmail.com', // 발신자 이메일
-        pass: process.env.GMAIL_APP_PASSWORD || 'your-app-password' // Gmail 앱 비밀번호
+        user: process.env.SMTP_USER || 'sangkeun.jo@gmail.com',
+        pass: process.env.GMAIL_APP_PASSWORD || ''
       },
-        tls: {
-          rejectUnauthorized: false
-        }
+      tls: {
+        rejectUnauthorized: false
+      }
     });
 
-    // 이메일 발송
     const mailOptions = {
-      from: 'sangkeun.jo@gmail.com',
+      from: process.env.SMTP_USER || 'sangkeun.jo@gmail.com',
       to: to,
       subject: subject,
       html: htmlContent
     };
 
     const result = await transporter.sendMail(mailOptions);
-    console.log('📧 이메일 발송 성공:', result.messageId);
+    console.log('이메일 발송 성공:', result.messageId);
     return true;
   } catch (error) {
     console.error('이메일 발송 오류:', error);
-    
-    // 오류 발생 시에도 콘솔에 로그 출력 (개발용)
-    console.log('📧 이메일 발송 시뮬레이션 (오류로 인한 대체):');
-    console.log('받는 사람:', to);
-    console.log('제목:', subject);
-    console.log('내용:', htmlContent.substring(0, 200) + '...');
-    
     return false;
   }
 };
 
 // HTML 이메일 템플릿 생성
-const generateEmailTemplate = (userInfo: any, resultData: any, categoryNames: Record<string, string>) => {
+const generateEmailTemplate = (
+  userInfo: { name?: string; company?: string; email?: string; phone?: string },
+  resultData: { totalScore: number; categoryScores: Record<string, number> },
+  categoryNames: Record<string, string>
+) => {
   const getMaturityLevel = (score: number): string => {
     if (score >= 4.5) return '최적화';
     if (score >= 3.5) return '표준화';
@@ -89,28 +84,32 @@ const generateEmailTemplate = (userInfo: any, resultData: any, categoryNames: Re
                 <h1>SCM 성숙도 진단 결과</h1>
                 <p>${userInfo?.company || '귀하의 회사'}의 공급망 관리 성숙도 진단이 완료되었습니다.</p>
             </div>
+
             <div class="content">
                 <h2>진단자 정보</h2>
                 <p><strong>이름:</strong> ${userInfo?.name || '미입력'}</p>
                 <p><strong>회사:</strong> ${userInfo?.company || '미입력'}</p>
                 <p><strong>이메일:</strong> ${userInfo?.email || '미입력'}</p>
                 <p><strong>전화:</strong> ${userInfo?.phone || '미입력'}</p>
+
                 <div class="score-box">
                     <h2>종합 진단 결과</h2>
                     <h1 class="highlight">${resultData.totalScore.toFixed(1)}점</h1>
                     <p><strong>성숙도 수준:</strong> ${getMaturityLevel(resultData.totalScore)}</p>
                     <p><strong>등급:</strong> ${getGrade(resultData.totalScore)}</p>
                 </div>
+
                 <h3>영역별 진단 결과</h3>
                 <div class="category-grid">
                     ${Object.entries(resultData.categoryScores).map(([category, score]) => `
                         <div class="category-item">
                             <h4>${categoryNames[category] || category}</h4>
-                            <p class="highlight">${(score as number).toFixed(1)}점</p>
-                            <p>수준: ${getMaturityLevel(score as number)} (${getGrade(score as number)})</p>
+                            <p class="highlight">${Number(score).toFixed(1)}점</p>
+                            <p>수준: ${getMaturityLevel(Number(score))} (${getGrade(Number(score))})</p>
                         </div>
                     `).join('')}
                 </div>
+
                 <h3>다음 단계</h3>
                 <p>진단 결과를 바탕으로 다음과 같은 개선 활동을 권장합니다:</p>
                 <ul>
@@ -118,9 +117,10 @@ const generateEmailTemplate = (userInfo: any, resultData: any, categoryNames: Re
                     <li>SCM 전문가와의 상담을 통한 구체적인 개선 방안 도출</li>
                     <li>정기적인 재진단을 통한 개선 효과 측정</li>
                 </ul>
+
                 <div class="footer">
                     <p>본 이메일은 SCM 성숙도 진단 시스템에서 자동으로 발송되었습니다.</p>
-                    <p>문의사항: sangkeun.jo@gmail.com</p>
+                    <p>문의사항: ${process.env.ADMIN_EMAIL || 'sangkeun.jo@gmail.com'}</p>
                 </div>
             </div>
         </div>
@@ -131,67 +131,76 @@ const generateEmailTemplate = (userInfo: any, resultData: any, categoryNames: Re
 
 export async function POST(request: Request) {
   try {
-    const { userId, companyId, userName, userEmail, userPhone, answers } = await request.json();
+    const { companyId, userName, userEmail, answers } = await request.json();
 
-    if (!userId || !companyId || !answers) {
+    if (!companyId || !answers) {
       return NextResponse.json(
         { message: '필수 데이터가 누락되었습니다.' },
         { status: 400 }
       );
     }
 
-    const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
-    
-    // 기존 결과 확인
-    const { data: existingResults, error: selectError } = await supabase
+    // 기존 결과 확인 (user_email + company_id 기준)
+    const { data: existingResults } = await supabase
       .from('survey_results')
       .select('id')
-      .eq('user_email', userEmail)
+      .eq('user_email', userEmail || '')
       .eq('company_id', companyId);
 
     let resultId: number;
-    
-  if (Array.isArray(existingResults) && existingResults.length > 0) {
+
+    if (existingResults && existingResults.length > 0) {
       // 기존 결과 업데이트
       resultId = existingResults[0].id;
-        await supabase
-          .from('survey_results')
-          .update({ 
-            updated_at: new Date().toISOString(),
-            total_score: null, // 임시, 아래에서 실제 점수로 업데이트
-            user_name: userName
-          })
-          .eq('id', resultId);
       await supabase
-        .from('survey_answers')
-        .delete()
-        .eq('survey_result_id', resultId);
+        .from('survey_results')
+        .update({
+          updated_at: new Date().toISOString(),
+          user_name: userName || '게스트'
+        })
+        .eq('id', resultId);
+
+      // 기존 답변 및 카테고리 분석 삭제
+      await supabase.from('survey_answers').delete().eq('survey_result_id', resultId);
+      await supabase.from('category_analysis').delete().eq('survey_result_id', resultId);
     } else {
       // 새 결과 생성
-      const { data: insertResult, error: insertError } = await supabase
+      const { data: newResult, error: insertError } = await supabase
         .from('survey_results')
         .insert({
-          user_email: userEmail,
+          user_email: userEmail || '',
+          user_name: userName || '게스트',
           company_id: companyId,
-            user_name: userName,
           created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          total_score: null // 임시, 아래에서 실제 점수로 업데이트
+          updated_at: new Date().toISOString()
         })
-        .select('id');
-      resultId = insertResult?.[0]?.id;
-    }
-    // 전체 평균 점수 계산 후 survey_results에 total_score 업데이트
-  // ...existing code...
+        .select('id')
+        .single();
 
-    // 답변 저장
-    for (const [questionId, answer] of Object.entries(answers)) {
-      await supabase.from('survey_answers').insert({
-        survey_result_id: resultId,
-        question_id: questionId,
-        answer_value: answer,
-        created_at: new Date().toISOString()
-      });
+      if (insertError || !newResult) {
+        console.error('survey_results insert error:', insertError);
+        return NextResponse.json(
+          { message: '결과 저장에 실패했습니다.' },
+          { status: 500 }
+        );
+      }
+      resultId = newResult.id;
+    }
+
+    // 답변 일괄 저장
+    const answerRows = Object.entries(answers).map(([questionId, answerValue]) => ({
+      survey_result_id: resultId,
+      question_id: questionId,
+      answer_value: Number(answerValue),
+      created_at: new Date().toISOString()
+    }));
+
+    const { error: answersError } = await supabase
+      .from('survey_answers')
+      .insert(answerRows);
+
+    if (answersError) {
+      console.error('survey_answers insert error:', answersError);
     }
 
     // 설문 질문 데이터 (가중치 정보 포함) DB에서 가져오기
@@ -199,6 +208,7 @@ export async function POST(request: Request) {
       .from('category_question')
       .select('question_id, category_id, question, weight')
       .eq('isactive', true);
+
     if (surveyQuestionsError) {
       console.error('Error fetching survey questions:', surveyQuestionsError);
       return NextResponse.json(
@@ -208,16 +218,18 @@ export async function POST(request: Request) {
     }
 
     // 카테고리명 DB에서 가져오기
-    const { data: categoryRows, error: categoryError } = await supabase
+    const { data: categoryData, error: categoryFetchError } = await supabase
       .from('category')
       .select('id, key, title')
       .order('id', { ascending: true });
-    if (categoryError) {
-      console.error('Error fetching categories:', categoryError);
+
+    if (categoryFetchError) {
+      console.error('Error fetching categories:', categoryFetchError);
     }
+
     const categoryNames: Record<string, string> = {};
-    if (categoryRows) {
-      for (const row of categoryRows) {
+    if (categoryData) {
+      for (const row of categoryData) {
         categoryNames[row.key] = row.title;
       }
     }
@@ -231,10 +243,9 @@ export async function POST(request: Request) {
     }
 
     for (const [questionId, answer] of Object.entries(answers)) {
-      const question = surveyQuestions.find(q => q.question_id === questionId);
+      const question = surveyQuestions?.find((q: any) => q.question_id === questionId);
       if (question) {
-        // category_id로 key 찾기
-        const categoryRow = categoryRows?.find(cat => String(cat.id) === String(question.category_id));
+        const categoryRow = categoryData?.find((cat: any) => String(cat.id) === String(question.category_id));
         const categoryKey = categoryRow?.key;
         if (categoryKey && categoryScores.hasOwnProperty(categoryKey)) {
           const weightedScore = Number(answer) * question.weight;
@@ -252,46 +263,49 @@ export async function POST(request: Request) {
     }
 
     // 전체 평균 점수 계산
-    const totalScore = Object.values(categoryScores).reduce((sum, score) => sum + score, 0) / Object.keys(categoryScores).length;
+    const scoreValues = Object.values(categoryScores);
+    const totalScore = scoreValues.length > 0
+      ? scoreValues.reduce((sum, score) => sum + score, 0) / scoreValues.length
+      : 0;
 
-    // 전체 평균 점수 계산 후 survey_results에 total_score 업데이트
+    // total_score 업데이트
     await supabase
       .from('survey_results')
       .update({ total_score: totalScore })
       .eq('id', resultId);
-    
-    // 디버깅을 위한 점수 출력
-    console.log('=== 진단 점수 계산 결과 ===');
-    console.log('입력된 답변:', answers);
-    console.log('카테고리별 점수:', categoryScores);
-    console.log('전체 점수:', totalScore);
-    console.log('========================');
 
-    // 카테고리 분석 결과 저장
-    for (const [category, score] of Object.entries(categoryScores)) {
-      await supabase.from('category_analysis').insert({
-        survey_result_id: resultId,
-        category,
-        score,
-        max_score: 5,
-        created_at: new Date().toISOString()
-      });
+    // 카테고리 분석 결과 일괄 저장
+    const analysisRows = Object.entries(categoryScores).map(([category, score]) => ({
+      survey_result_id: resultId,
+      category,
+      score,
+      max_score: 5,
+      created_at: new Date().toISOString()
+    }));
+
+    const { error: analysisError } = await supabase
+      .from('category_analysis')
+      .insert(analysisRows);
+
+    if (analysisError) {
+      console.error('category_analysis insert error:', analysisError);
     }
 
     // 이메일 발송
-    const resultData = {
-      totalScore,
-      categoryScores
-    };
+    const resultData = { totalScore, categoryScores };
 
-    // 담당자에게 이메일 발송
     if (userEmail) {
       const userSubject = `[SCM 진단 결과] ${userName || '고객'}님의 SCM 성숙도 진단 결과입니다`;
-      const userHtml = generateEmailTemplate({ name: userName, company: companyId, email: userEmail, phone: userPhone }, resultData, categoryNames);
+      const userHtml = generateEmailTemplate(
+        { name: userName, company: companyId, email: userEmail },
+        resultData,
+        categoryNames
+      );
       await sendEmail(userEmail, userSubject, userHtml);
     }
 
-    // 관리자에게 이메일 발송 (올바른 주소)
+    // 관리자에게 이메일 발송
+    const adminEmail = process.env.ADMIN_EMAIL || 'sangkeun.jo@gmail.com';
     const adminSubject = `[SCM 진단 완료] ${userName || '고객'}님의 진단이 완료되었습니다`;
     const adminHtml = `
       <h2>새로운 SCM 진단 완료</h2>
@@ -299,21 +313,15 @@ export async function POST(request: Request) {
       <p><strong>회사:</strong> ${companyId}</p>
       <p><strong>이메일:</strong> ${userEmail || '미입력'}</p>
       <p><strong>종합 점수:</strong> ${Number(totalScore).toFixed(1)}점</p>
-      <p><strong>진단 완료 시간:</strong> ${now}</p>
+      <p><strong>진단 완료 시간:</strong> ${new Date().toISOString()}</p>
     `;
-    
-    // 올바른 관리자 이메일 주소로 발송
-    await sendEmail('sangkeun.jo@gmail.com', adminSubject, adminHtml);
-    console.log('📧 관리자 이메일 발송 완료: sangkeun.jo@gmail.com');
+    await sendEmail(adminEmail, adminSubject, adminHtml);
 
     return NextResponse.json({
       success: true,
-      id: resultId,
-      userId,
-      companyId,
+      resultId,
       totalScore,
-      categoryScores,
-      createdAt: now
+      categoryScores
     });
 
   } catch (error) {

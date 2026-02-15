@@ -20,14 +20,15 @@
       {
         "name": "next"
       }
-    ]
+    ],
+    "target": "ES2017"
   },
   "include": [
     "next-env.d.ts",
     ".next/types/**/*.ts",
     "**/*.ts",
     "**/*.tsx"
-, "app/lib/supabase.js"  ],
+  ],
   "exclude": [
     "node_modules"
   ]

@@ -26,10 +26,6 @@ import {
   ArrowForward
 } from '@mui/icons-material';
 
-// ...surveyQuestions removed. Will fetch from Supabase.
-
-// ...categories removed. Will fetch from Supabase.
-
 export default function SurveyQuestionsPage() {
   const router = useRouter();
   const [currentCategoryIndex, setCurrentCategoryIndex] = useState(0);
@@ -45,8 +41,6 @@ export default function SurveyQuestionsPage() {
       const { data: catData, error: catError } = await supabase.from('category').select('id, key, title');
       if (catError) {
         console.error('Error fetching categories:', catError);
-      } else {
-        console.log('Fetched categories:', catData);
       }
 
       if (catData) {
@@ -75,8 +69,6 @@ export default function SurveyQuestionsPage() {
         .eq('isactive', true);
       if (qError) {
         console.error('Error fetching questions:', qError);
-      } else {
-        console.log('Fetched questions:', qData);
       }
 
       if (qData && catData) {
@@ -94,11 +86,6 @@ export default function SurveyQuestionsPage() {
     }
     fetchData();
   }, []);
-
-useEffect(() => {
-  console.log(categories);
-  console.log(surveyQuestions);
-}, [categories, surveyQuestions]);
 
   // 카테고리가 변경될 때마다 페이지 상단으로 스크롤
   useEffect(() => {
@@ -122,10 +109,8 @@ useEffect(() => {
     setShowAlert(false);
     if (currentCategoryIndex < categories.length - 1) {
       setCurrentCategoryIndex(prev => prev + 1);
-      // 다음 모듈로 이동할 때 페이지 상단으로 스크롤하고 1번 항목으로 이동
       setTimeout(() => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
-        // 첫 번째 질문 카드로 포커스 이동
         const firstQuestionCard = document.querySelector('[data-question-id]');
         if (firstQuestionCard) {
           firstQuestionCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -139,7 +124,6 @@ useEffect(() => {
   const handlePrevious = () => {
     if (currentCategoryIndex > 0) {
       setCurrentCategoryIndex(prev => prev - 1);
-      // 이전 모듈로 이동할 때도 페이지 상단으로 스크롤
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
@@ -147,38 +131,39 @@ useEffect(() => {
   const handleSubmitSurvey = async () => {
     setLoading(true);
     try {
-      // localStorage에서 사용자 정보 가져오기
       const userInfo = localStorage.getItem('userInfo');
-      let userId = 'guest-123';
       let companyId = 'guest-company';
       let userName = '게스트';
       let userEmail = '';
-      let userPhone = '';
+
       if (userInfo) {
         const parsedUserInfo = JSON.parse(userInfo);
-        userId = `user-${Date.now()}`;
         companyId = parsedUserInfo.company || 'guest-company';
         userName = parsedUserInfo.name || '게스트';
         userEmail = parsedUserInfo.email || '';
-        userPhone = parsedUserInfo.phone || '';
       }
+
       const response = await fetch('/api/survey', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          userId: userId,
           companyId: companyId,
           userName: userName,
           userEmail: userEmail,
-          userPhone: userPhone,
           answers: answers
         }),
       });
       if (response.ok) {
-        const resultData = await response.json();
-        localStorage.setItem('surveyResult', JSON.stringify(resultData));
+        const data = await response.json();
+        // API 응답 데이터를 localStorage에 저장하여 results 페이지에서 사용
+        localStorage.setItem('surveyResult', JSON.stringify({
+          id: data.resultId,
+          totalScore: data.totalScore,
+          categoryScores: data.categoryScores,
+          createdAt: new Date().toISOString()
+        }));
         router.push('/survey/results');
       } else {
         console.error('Survey submission failed');
@@ -234,7 +219,7 @@ useEffect(() => {
         </Box>
 
         {/* Category Header */}
-  <Card sx={{ mb: 4, bgcolor: currentCategory?.color || 'defaultColor', color: 'white' }}>
+        <Card sx={{ mb: 4, bgcolor: currentCategory?.color || 'primary.main', color: 'white' }}>
           <CardContent sx={{ p: 3 }}>
             <Typography variant="h4" component="h2" gutterBottom sx={{ fontWeight: 'bold' }}>
               {currentCategory?.name || ''}
@@ -251,10 +236,10 @@ useEffect(() => {
           </Alert>
         )}
 
-                 {/* Questions */}
-         <Box sx={{ mb: 4 }}>
-           {currentCategoryQuestions.map((question, index) => (
-             <Card key={question.id} sx={{ mb: 3 }} data-question-id={question.id}>
+        {/* Questions */}
+        <Box sx={{ mb: 4 }}>
+          {currentCategoryQuestions.map((question, index) => (
+            <Card key={question.id} sx={{ mb: 3 }} data-question-id={question.id}>
               <CardContent sx={{ p: 4 }}>
                 <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
                   <Typography variant="h6" sx={{ bgcolor: currentCategory.color, color: 'white', px: 2, py: 0.5, borderRadius: 1, mr: 2 }}>
@@ -285,17 +270,17 @@ useEffect(() => {
                             </Typography>
                           </Box>
                         }
-                        sx={{ 
-                          flex: 1, 
-                          minWidth: '120px', 
-                          border: '1px solid #e0e0e0', 
-                          borderRadius: 2, 
-                          p: 2, 
-                          m: 0, 
-                          '&:hover': { 
-                            borderColor: currentCategory.color, 
-                            bgcolor: 'action.hover' 
-                          } 
+                        sx={{
+                          flex: 1,
+                          minWidth: '120px',
+                          border: '1px solid #e0e0e0',
+                          borderRadius: 2,
+                          p: 2,
+                          m: 0,
+                          '&:hover': {
+                            borderColor: currentCategory.color,
+                            bgcolor: 'action.hover'
+                          }
                         }}
                       />
                     ))}
