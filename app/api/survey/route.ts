@@ -131,7 +131,7 @@ const generateEmailTemplate = (
 
 export async function POST(request: Request) {
   try {
-    const { companyId, userName, userEmail, answers } = await request.json();
+    const { companyId, userName, userEmail, answers, industry, companySize } = await request.json();
 
     if (!companyId || !answers) {
       return NextResponse.json(
@@ -156,7 +156,9 @@ export async function POST(request: Request) {
         .from('survey_results')
         .update({
           updated_at: new Date().toISOString(),
-          user_name: userName || '게스트'
+          user_name: userName || '게스트',
+          industry: industry || null,
+          company_size: companySize || null
         })
         .eq('id', resultId);
 
@@ -171,6 +173,8 @@ export async function POST(request: Request) {
           user_email: userEmail || '',
           user_name: userName || '게스트',
           company_id: companyId,
+          industry: industry || null,
+          company_size: companySize || null,
           created_at: new Date().toISOString(),
           updated_at: new Date().toISOString()
         })

@@ -13,7 +13,9 @@ import {
   LinearProgress,
   Paper,
   Chip,
-  CircularProgress
+  CircularProgress,
+  Fab,
+  Skeleton
 } from '@mui/material';
 import {
   RadarChart,
@@ -35,8 +37,14 @@ import {
   Refresh as RefreshIcon,
   Home as HomeIcon,
   Psychology as PsychologyIcon,
-  Assignment as AssignmentIcon
+  Assignment as AssignmentIcon,
+  Chat as ChatIcon,
+  AutoAwesome
 } from '@mui/icons-material';
+import StructuredAnalysisView from '../../components/StructuredAnalysis';
+import BenchmarkComparison from '../../components/BenchmarkComparison';
+import AIChatPanel from '../../components/AIChatPanel';
+import { StructuredAnalysis, BenchmarkData, CATEGORY_NAMES } from '../../types/ai';
 
 interface SurveyResultData {
   id: string | number;
@@ -44,15 +52,6 @@ interface SurveyResultData {
   categoryScores: Record<string, number>;
   createdAt: string;
 }
-
-const categoryNames: Record<string, string> = {
-  planning: '계획 관리',
-  procurement: '조달 관리',
-  inventory: '재고 관리',
-  production: '생산 관리',
-  logistics: '물류 관리',
-  integration: '통합 관리'
-};
 
 const getMaturityLevel = (score: number): string => {
   if (score >= 4.5) return '최적화';
@@ -77,8 +76,11 @@ export default function SurveyResultsPage() {
   const router = useRouter();
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
-  const [aiAnalysis, setAiAnalysis] = useState<string>('');
-  const [userInfo, setUserInfo] = useState<{ name?: string; company?: string; email?: string; phone?: string } | null>(null);
+  const [aiAnalysis, setAiAnalysis] = useState<StructuredAnalysis | null>(null);
+  const [isFallback, setIsFallback] = useState(false);
+  const [benchmarkData, setBenchmarkData] = useState<BenchmarkData | null>(null);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [userInfo, setUserInfo] = useState<any>(null);
   const [surveyResult, setSurveyResult] = useState<SurveyResultData | null>(null);
 
   useEffect(() => {
@@ -95,7 +97,32 @@ export default function SurveyResultsPage() {
     }
   }, []);
 
-  // 데이터 로딩 중
+  // 벤치마크 데이터 자동 로드
+  useEffect(() => {
+    if (surveyResult && userInfo) {
+      fetchBenchmark();
+    }
+  }, [surveyResult, userInfo]);
+
+  const fetchBenchmark = async () => {
+    try {
+      const params = new URLSearchParams();
+      if (userInfo?.industry) params.set('industry', userInfo.industry);
+      if (userInfo?.companySize) params.set('companySize', userInfo.companySize);
+      if (surveyResult?.id) params.set('surveyResultId', String(surveyResult.id));
+
+      const response = await fetch(`/api/benchmark?${params.toString()}`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setBenchmarkData(data.data);
+        }
+      }
+    } catch (e) {
+      // 벤치마크 로드 실패 무시
+    }
+  };
+
   if (!surveyResult) {
     return (
       <Box sx={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 3 }}>
@@ -111,20 +138,21 @@ export default function SurveyResultsPage() {
   }
 
   const radarData = Object.entries(surveyResult.categoryScores).map(([key, value]) => ({
-    category: categoryNames[key] || key,
+    category: CATEGORY_NAMES[key] || key,
     score: Number(value),
     fullMark: 5
   }));
 
   const barData = Object.entries(surveyResult.categoryScores).map(([key, value]) => ({
-    category: categoryNames[key] || key,
+    category: CATEGORY_NAMES[key] || key,
     score: Number(value)
   }));
 
   const handleDownloadReport = async () => {
     setIsGeneratingPDF(true);
     try {
-      await generateHTMLToPDF(surveyResult, userInfo?.company || '귀하의 회사', aiAnalysis);
+      const aiText = aiAnalysis ? aiAnalysis.executive_summary + '\n\n' + aiAnalysis.overall_assessment : '';
+      await generateHTMLToPDF(surveyResult, userInfo?.company || '귀하의 회사', aiText);
     } catch (error) {
       console.error('PDF 생성 오류:', error);
       alert('PDF 생성 중 오류가 발생했습니다.');
@@ -135,21 +163,28 @@ export default function SurveyResultsPage() {
 
   const handleGenerateAIAnalysis = async () => {
     setIsGeneratingAI(true);
+    setIsFallback(false);
     try {
       const response = await fetch('/api/ai-analysis', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          userInfo: userInfo,
-          resultData: surveyResult
+          userInfo,
+          resultData: {
+            ...surveyResult,
+            totalScore: surveyResult.totalScore
+          },
+          benchmarkData: benchmarkData?.categories?.reduce((acc: any, cat: any) => {
+            acc[cat.category_key] = { avg: cat.avg_score, percentile: cat.percentile };
+            return acc;
+          }, {})
         }),
       });
 
       if (response.ok) {
         const data = await response.json();
         setAiAnalysis(data.analysis);
+        setIsFallback(data.isFallback || false);
       } else {
         alert('AI 분석 생성 중 오류가 발생했습니다.');
       }
@@ -161,18 +196,6 @@ export default function SurveyResultsPage() {
     }
   };
 
-  const handleNewSurvey = () => {
-    router.push('/survey/info');
-  };
-
-  const handleBackToHome = () => {
-    router.push('/');
-  };
-
-  const handleGoToImprovementPlan = () => {
-    router.push('/improvement-plan');
-  };
-
   return (
     <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
       {/* Header */}
@@ -182,7 +205,7 @@ export default function SurveyResultsPage() {
             <Typography variant="h6" component="div" sx={{ fontWeight: 'bold' }}>
               진단 결과
             </Typography>
-            <Button color="inherit" startIcon={<HomeIcon />} onClick={handleBackToHome}>
+            <Button color="inherit" startIcon={<HomeIcon />} onClick={() => router.push('/')}>
               홈으로
             </Button>
           </Box>
@@ -200,42 +223,21 @@ export default function SurveyResultsPage() {
               종합 점수: {surveyResult.totalScore.toFixed(1)}점
             </Typography>
             <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, mb: 3 }}>
-              <Chip
-                label={`${getMaturityLevel(surveyResult.totalScore)} 수준`}
-                color="primary"
-                variant="outlined"
-                size="medium"
-              />
-              <Chip
-                label={`${getGrade(surveyResult.totalScore)} 등급`}
-                color="secondary"
-                variant="outlined"
-                size="medium"
-              />
+              <Chip label={`${getMaturityLevel(surveyResult.totalScore)} 수준`} color="primary" variant="outlined" size="medium" />
+              <Chip label={`${getGrade(surveyResult.totalScore)} 등급`} color="secondary" variant="outlined" size="medium" />
             </Box>
             <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
               귀사의 SCM 성숙도는 <strong>{getMaturityLevel(surveyResult.totalScore)} 수준</strong>입니다.
             </Typography>
 
-            {/* 사용자 정보 표시 */}
             {userInfo && (
               <Box sx={{ mb: 3, p: 2, bgcolor: 'grey.50', borderRadius: 2 }}>
-                <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>
-                  진단자 정보
-                </Typography>
+                <Typography variant="h6" sx={{ fontWeight: 'bold', mb: 1 }}>진단자 정보</Typography>
                 <Box sx={{ display: 'flex', justifyContent: 'center', gap: 4, flexWrap: 'wrap' }}>
-                  <Typography variant="body2">
-                    <strong>이름:</strong> {userInfo.name}
-                  </Typography>
-                  <Typography variant="body2">
-                    <strong>회사:</strong> {userInfo.company}
-                  </Typography>
-                  <Typography variant="body2">
-                    <strong>이메일:</strong> {userInfo.email}
-                  </Typography>
-                  <Typography variant="body2">
-                    <strong>전화:</strong> {userInfo.phone}
-                  </Typography>
+                  {userInfo.name && <Typography variant="body2"><strong>이름:</strong> {userInfo.name}</Typography>}
+                  {userInfo.company && <Typography variant="body2"><strong>회사:</strong> {userInfo.company}</Typography>}
+                  {userInfo.industry && <Typography variant="body2"><strong>업종:</strong> {userInfo.industry}</Typography>}
+                  {userInfo.companySize && <Typography variant="body2"><strong>규모:</strong> {userInfo.companySize}</Typography>}
                 </Box>
               </Box>
             )}
@@ -253,28 +255,17 @@ export default function SurveyResultsPage() {
               <Button
                 variant="contained"
                 color="secondary"
-                startIcon={<PsychologyIcon />}
+                startIcon={isGeneratingAI ? <CircularProgress size={20} color="inherit" /> : <AutoAwesome />}
                 onClick={handleGenerateAIAnalysis}
                 disabled={isGeneratingAI}
                 size="large"
               >
-                {isGeneratingAI ? 'AI 분석 생성 중...' : 'AI 개선 방안 생성'}
+                {isGeneratingAI ? 'AI 심층 분석 중...' : (aiAnalysis ? 'AI 분석 재생성' : 'AI 심층 분석 생성')}
               </Button>
-              <Button
-                variant="outlined"
-                startIcon={<RefreshIcon />}
-                onClick={handleNewSurvey}
-                size="large"
-              >
+              <Button variant="outlined" startIcon={<RefreshIcon />} onClick={() => router.push('/survey/info')} size="large">
                 새 진단 시작
               </Button>
-              <Button
-                variant="outlined"
-                startIcon={<AssignmentIcon />}
-                onClick={handleGoToImprovementPlan}
-                size="large"
-                color="secondary"
-              >
+              <Button variant="outlined" startIcon={<AssignmentIcon />} onClick={() => router.push('/improvement-plan')} size="large" color="secondary">
                 개선계획 관리
               </Button>
             </Box>
@@ -294,13 +285,7 @@ export default function SurveyResultsPage() {
                     <PolarGrid />
                     <PolarAngleAxis dataKey="category" />
                     <PolarRadiusAxis angle={90} domain={[0, 5]} />
-                    <Radar
-                      name="점수"
-                      dataKey="score"
-                      stroke="#1976d2"
-                      fill="#1976d2"
-                      fillOpacity={0.3}
-                    />
+                    <Radar name="점수" dataKey="score" stroke="#1976d2" fill="#1976d2" fillOpacity={0.3} />
                   </RadarChart>
                 </ResponsiveContainer>
               </CardContent>
@@ -339,31 +324,17 @@ export default function SurveyResultsPage() {
                     <Grid item xs={12} sm={6} md={4} key={category}>
                       <Paper sx={{ p: 3, height: '100%' }}>
                         <Typography variant="h6" gutterBottom sx={{ fontWeight: 'bold' }}>
-                          {categoryNames[category] || category}
+                          {CATEGORY_NAMES[category] || category}
                         </Typography>
                         <Typography variant="h4" sx={{ fontWeight: 'bold', color: 'primary.main', mb: 1 }}>
                           {Number(score).toFixed(1)}점
                         </Typography>
                         <Box sx={{ mb: 2 }}>
-                          <LinearProgress
-                            variant="determinate"
-                            value={(Number(score) / 5) * 100}
-                            sx={{ height: 8, borderRadius: 4 }}
-                          />
+                          <LinearProgress variant="determinate" value={(Number(score) / 5) * 100} sx={{ height: 8, borderRadius: 4 }} />
                         </Box>
                         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                          <Chip
-                            label={getMaturityLevel(Number(score))}
-                            size="small"
-                            color="primary"
-                            variant="outlined"
-                          />
-                          <Chip
-                            label={getGrade(Number(score))}
-                            size="small"
-                            color="secondary"
-                            variant="outlined"
-                          />
+                          <Chip label={getMaturityLevel(Number(score))} size="small" color="primary" variant="outlined" />
+                          <Chip label={getGrade(Number(score))} size="small" color="secondary" variant="outlined" />
                         </Box>
                       </Paper>
                     </Grid>
@@ -374,55 +345,66 @@ export default function SurveyResultsPage() {
           </Grid>
         </Grid>
 
-        {/* AI 분석 결과 */}
-        {aiAnalysis && (
+        {/* 벤치마크 비교 */}
+        {benchmarkData && (
+          <Box sx={{ mt: 4 }}>
+            <BenchmarkComparison
+              benchmarkData={benchmarkData}
+              userScores={surveyResult.categoryScores}
+            />
+          </Box>
+        )}
+
+        {/* AI 심층 분석 로딩 */}
+        {isGeneratingAI && (
           <Card sx={{ mt: 4 }}>
             <CardContent sx={{ p: 4 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
-                <PsychologyIcon sx={{ fontSize: 30, color: 'secondary.main', mr: 2 }} />
+                <AutoAwesome sx={{ fontSize: 30, color: 'secondary.main', mr: 2 }} />
+                <Typography variant="h5" sx={{ fontWeight: 'bold' }}>AI 심층 분석 생성 중...</Typography>
+              </Box>
+              <Skeleton variant="rounded" height={60} sx={{ mb: 2 }} />
+              <Skeleton variant="rounded" height={40} sx={{ mb: 2 }} />
+              <Skeleton variant="rounded" height={200} sx={{ mb: 2 }} />
+              <Skeleton variant="rounded" height={150} />
+            </CardContent>
+          </Card>
+        )}
+
+        {/* AI 심층 분석 결과 */}
+        {aiAnalysis && !isGeneratingAI && (
+          <Card sx={{ mt: 4 }}>
+            <CardContent sx={{ p: 4 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                <AutoAwesome sx={{ fontSize: 30, color: 'secondary.main', mr: 2 }} />
                 <Typography variant="h5" component="h2" sx={{ fontWeight: 'bold' }}>
-                  AI 개선 방안 분석
+                  AI 심층 분석 결과
                 </Typography>
               </Box>
-              <Box
-                sx={{
-                  p: 3,
-                  bgcolor: 'grey.50',
-                  borderRadius: 2,
-                  border: '1px solid #e0e0e0'
-                }}
-              >
-                <Typography
-                  component="div"
-                  variant="body1"
-                  sx={{
-                    whiteSpace: 'pre-line',
-                    lineHeight: 1.8,
-                    '& h2': {
-                      color: 'primary.main',
-                      fontWeight: 'bold',
-                      mt: 3,
-                      mb: 2,
-                      fontSize: '1.3rem'
-                    },
-                    '& h3': {
-                      color: 'secondary.main',
-                      fontWeight: 'bold',
-                      mt: 2,
-                      mb: 1,
-                      fontSize: '1.1rem'
-                    },
-                    '& ul': { pl: 3 },
-                    '& li': { mb: 0.5 }
-                  }}
-                >
-                  {aiAnalysis}
-                </Typography>
-              </Box>
+              <StructuredAnalysisView analysis={aiAnalysis} isFallback={isFallback} />
             </CardContent>
           </Card>
         )}
       </Container>
+
+      {/* AI 코칭 챗봇 FAB */}
+      <Fab
+        color="secondary"
+        sx={{ position: 'fixed', bottom: 24, right: 24, zIndex: 1000 }}
+        onClick={() => setChatOpen(true)}
+      >
+        <ChatIcon />
+      </Fab>
+
+      {/* AI 채팅 패널 */}
+      <AIChatPanel
+        open={chatOpen}
+        onClose={() => setChatOpen(false)}
+        surveyResultId={surveyResult?.id ? Number(surveyResult.id) : 0}
+        userInfo={userInfo}
+        categoryScores={surveyResult.categoryScores}
+        totalScore={surveyResult.totalScore}
+      />
     </Box>
   );
 }

@@ -14,7 +14,11 @@ import {
   Stepper,
   Step,
   StepLabel,
-  Paper
+  Paper,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem
 } from '@mui/material';
 import {
   ArrowBack,
@@ -22,8 +26,11 @@ import {
   Person,
   Phone,
   Business,
-  Email
+  Email,
+  Factory,
+  Groups
 } from '@mui/icons-material';
+import { INDUSTRY_OPTIONS, COMPANY_SIZE_OPTIONS } from '../../types/ai';
 
 export default function SurveyInfoPage() {
   const router = useRouter();
@@ -31,7 +38,9 @@ export default function SurveyInfoPage() {
     name: '',
     phone: '',
     company: '',
-    email: ''
+    email: '',
+    industry: '',
+    companySize: ''
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -225,6 +234,50 @@ export default function SurveyInfoPage() {
                     helperText={errors.email}
                     placeholder="example@company.com"
                   />
+                </Box>
+
+                {/* 업종 */}
+                <Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <Factory sx={{ fontSize: 20, color: 'primary.main', mr: 1 }} />
+                    <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                      업종
+                    </Typography>
+                  </Box>
+                  <FormControl fullWidth>
+                    <InputLabel>업종 선택</InputLabel>
+                    <Select
+                      value={formData.industry}
+                      label="업종 선택"
+                      onChange={(e) => handleInputChange('industry', e.target.value)}
+                    >
+                      {INDUSTRY_OPTIONS.map((option) => (
+                        <MenuItem key={option} value={option}>{option}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </Box>
+
+                {/* 기업 규모 */}
+                <Box>
+                  <Box sx={{ display: 'flex', alignItems: 'center', mb: 1 }}>
+                    <Groups sx={{ fontSize: 20, color: 'primary.main', mr: 1 }} />
+                    <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                      기업 규모
+                    </Typography>
+                  </Box>
+                  <FormControl fullWidth>
+                    <InputLabel>기업 규모 선택</InputLabel>
+                    <Select
+                      value={formData.companySize}
+                      label="기업 규모 선택"
+                      onChange={(e) => handleInputChange('companySize', e.target.value)}
+                    >
+                      {COMPANY_SIZE_OPTIONS.map((option) => (
+                        <MenuItem key={option} value={option}>{option}</MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
                 </Box>
               </Box>
 

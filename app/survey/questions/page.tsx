@@ -135,12 +135,16 @@ export default function SurveyQuestionsPage() {
       let companyId = 'guest-company';
       let userName = '게스트';
       let userEmail = '';
+      let industry = '';
+      let companySize = '';
 
       if (userInfo) {
         const parsedUserInfo = JSON.parse(userInfo);
         companyId = parsedUserInfo.company || 'guest-company';
         userName = parsedUserInfo.name || '게스트';
         userEmail = parsedUserInfo.email || '';
+        industry = parsedUserInfo.industry || '';
+        companySize = parsedUserInfo.companySize || '';
       }
 
       const response = await fetch('/api/survey', {
@@ -152,6 +156,8 @@ export default function SurveyQuestionsPage() {
           companyId: companyId,
           userName: userName,
           userEmail: userEmail,
+          industry: industry,
+          companySize: companySize,
           answers: answers
         }),
       });

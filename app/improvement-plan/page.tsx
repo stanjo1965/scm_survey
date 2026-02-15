@@ -35,7 +35,8 @@ import {
   ListItem,
   ListItemIcon,
   ListItemText,
-  Checkbox
+  Checkbox,
+  Fab
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -53,8 +54,12 @@ import {
   Park as EsgIcon,
   Rocket as StrategyIcon,
   PlayArrow as PlayIcon,
-  Assessment as AssessmentIcon
+  Assessment as AssessmentIcon,
+  Chat as ChatIcon,
+  Timeline as TimelineIcon
 } from '@mui/icons-material';
+import AIChatPanel from '../components/AIChatPanel';
+import { AIImprovementPlanItem } from '../types/ai';
 import {
   scmImprovementAreas,
   getRecommendedItems,
@@ -118,6 +123,10 @@ export default function ImprovementPlanPage() {
   const [recommendations, setRecommendations] = useState<ImprovementItem[]>([]);
   const [generating, setGenerating] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' as 'success' | 'error' | 'info' });
+  const [aiPlans, setAiPlans] = useState<AIImprovementPlanItem[]>([]);
+  const [generatingAIPlan, setGeneratingAIPlan] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [userInfo, setUserInfo] = useState<any>(null);
 
   useEffect(() => {
     const savedTasks = localStorage.getItem('improvementTasks_v2');
@@ -129,11 +138,77 @@ export default function ImprovementPlanPage() {
       const result = JSON.parse(storedResult);
       setSurveyResult({ totalScore: result.totalScore, categoryScores: result.categoryScores });
     }
+    const storedUserInfo = localStorage.getItem('userInfo');
+    if (storedUserInfo) {
+      setUserInfo(JSON.parse(storedUserInfo));
+    }
   }, []);
 
   const saveTasks = (newTasks: ImprovementTask[]) => {
     setTasks(newTasks);
     localStorage.setItem('improvementTasks_v2', JSON.stringify(newTasks));
+  };
+
+  const handleGenerateAIPlan = async () => {
+    if (!surveyResult) {
+      setSnackbar({ open: true, message: '진단 결과가 없습니다.', severity: 'error' });
+      return;
+    }
+    setGeneratingAIPlan(true);
+    try {
+      const response = await fetch('/api/ai-improvement-plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          surveyResultId: null,
+          userInfo,
+          categoryScores: surveyResult.categoryScores,
+          totalScore: surveyResult.totalScore
+        })
+      });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.plans) {
+          setAiPlans(data.plans);
+          setActiveTab(3);
+          setSnackbar({ open: true, message: `AI가 ${data.plans.length}개 맞춤 개선계획을 생성했습니다.`, severity: 'success' });
+        }
+      } else {
+        setSnackbar({ open: true, message: 'AI 개선계획 생성에 실패했습니다.', severity: 'error' });
+      }
+    } catch (e) {
+      setSnackbar({ open: true, message: 'AI 서비스 연결에 실패했습니다.', severity: 'error' });
+    } finally {
+      setGeneratingAIPlan(false);
+    }
+  };
+
+  const handleAddAIPlanItem = (plan: AIImprovementPlanItem) => {
+    if (tasks.find(t => t.title === plan.title)) {
+      setSnackbar({ open: true, message: '이미 추가된 항목입니다.', severity: 'info' });
+      return;
+    }
+    const newTask: ImprovementTask = {
+      id: Date.now().toString(),
+      area: plan.phase_label,
+      areaKey: plan.category_key || 'manual',
+      category: plan.category_key || '',
+      categoryKey: plan.category_key || 'planning',
+      title: plan.title,
+      description: plan.description,
+      actions: plan.actions || [],
+      kpis: plan.kpis || [],
+      priority: plan.priority || 'medium',
+      status: 'pending',
+      startDate: '',
+      endDate: '',
+      progress: 0,
+      assignedTo: '',
+      notes: `예산: ${plan.estimated_budget || '미정'} | 인력: ${plan.estimated_effort || '미정'}`,
+      checkedActions: (plan.actions || []).map(() => false)
+    };
+    saveTasks([...tasks, newTask]);
+    setSnackbar({ open: true, message: `"${plan.title}" 항목이 추가되었습니다.`, severity: 'success' });
   };
 
   const handleGenerateRecommendations = () => {
@@ -342,10 +417,26 @@ export default function ImprovementPlanPage() {
         )}
 
         {/* Tabs */}
-        <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} sx={{ mb: 3, '& .MuiTab-root': { fontWeight: 'bold' } }}>
+        {/* AI 맞춤 개선계획 버튼 */}
+        {surveyResult && (
+          <Box sx={{ mb: 2, display: 'flex', gap: 2 }}>
+            <Button
+              variant="outlined"
+              color="secondary"
+              startIcon={generatingAIPlan ? <CircularProgress size={20} /> : <TimelineIcon />}
+              onClick={handleGenerateAIPlan}
+              disabled={generatingAIPlan}
+            >
+              {generatingAIPlan ? 'AI 분석 중...' : 'AI 맞춤 개선계획 생성'}
+            </Button>
+          </Box>
+        )}
+
+        <Tabs value={activeTab} onChange={(_, v) => setActiveTab(v)} sx={{ mb: 3, '& .MuiTab-root': { fontWeight: 'bold' } }} variant="scrollable" scrollButtons="auto">
           <Tab label={`내 개선계획 (${totalTasks})`} />
           <Tab label={`추천 항목 (${recommendations.length})`} />
           <Tab label="SCM 프레임워크 전체" />
+          <Tab label={`AI 맞춤 추천 (${aiPlans.length})`} icon={<AutoAwesomeIcon sx={{ fontSize: 18 }} />} iconPosition="start" />
         </Tabs>
 
         {/* Tab 0: 내 개선계획 */}
@@ -646,9 +737,127 @@ export default function ImprovementPlanPage() {
         </DialogActions>
       </Dialog>
 
+      {/* Tab 3: AI 맞춤 추천 */}
+      {activeTab === 3 && (
+        <Box>
+          {aiPlans.length === 0 ? (
+            <Card sx={{ p: 4, textAlign: 'center' }}>
+              <AutoAwesomeIcon sx={{ fontSize: 48, color: 'text.disabled', mb: 2 }} />
+              <Typography variant="h6" color="text.secondary" gutterBottom>
+                AI 맞춤 개선계획이 아직 없습니다
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                위의 "AI 맞춤 개선계획 생성" 버튼을 클릭하면 귀사의 진단 결과를 분석하여 단기/중기/장기 맞춤 개선계획을 생성합니다.
+              </Typography>
+              <Button variant="contained" color="secondary" startIcon={<TimelineIcon />} onClick={handleGenerateAIPlan} disabled={generatingAIPlan || !surveyResult}>
+                AI 맞춤 개선계획 생성
+              </Button>
+            </Card>
+          ) : (
+            <>
+              {['short', 'mid', 'long'].map(phase => {
+                const phaseLabel = phase === 'short' ? '단기 (1-3개월)' : phase === 'mid' ? '중기 (3-6개월)' : '장기 (6-12개월)';
+                const phaseColor = phase === 'short' ? '#4caf50' : phase === 'mid' ? '#ff9800' : '#2196f3';
+                const phasePlans = aiPlans.filter(p => p.phase === phase);
+                if (phasePlans.length === 0) return null;
+
+                return (
+                  <Box key={phase} sx={{ mb: 4 }}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', mb: 2 }}>
+                      <Box sx={{ width: 4, height: 28, bgcolor: phaseColor, borderRadius: 2, mr: 1.5 }} />
+                      <Typography variant="h6" sx={{ fontWeight: 'bold' }}>
+                        {phaseLabel}
+                      </Typography>
+                      <Chip label={`${phasePlans.length}개 과제`} size="small" sx={{ ml: 1 }} />
+                    </Box>
+
+                    {phasePlans.map((plan, idx) => (
+                      <Accordion key={idx} sx={{ mb: 1 }}>
+                        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%', pr: 2 }}>
+                            <Chip label={priorityLabels[plan.priority] || plan.priority} size="small" color={priorityColors[plan.priority] || 'default'} />
+                            <Typography sx={{ fontWeight: 'bold', flex: 1 }}>{plan.title}</Typography>
+                            {plan.estimated_budget && (
+                              <Chip label={plan.estimated_budget} size="small" variant="outlined" />
+                            )}
+                          </Box>
+                        </AccordionSummary>
+                        <AccordionDetails>
+                          <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>{plan.description}</Typography>
+
+                          {plan.actions?.length > 0 && (
+                            <Box sx={{ mb: 2 }}>
+                              <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>실행 단계</Typography>
+                              <List dense disablePadding>
+                                {plan.actions.map((action, i) => (
+                                  <ListItem key={i} sx={{ py: 0.25 }}>
+                                    <ListItemIcon sx={{ minWidth: 28 }}>
+                                      <CheckCircleIcon sx={{ fontSize: 16, color: 'success.main' }} />
+                                    </ListItemIcon>
+                                    <ListItemText primary={action} primaryTypographyProps={{ variant: 'body2' }} />
+                                  </ListItem>
+                                ))}
+                              </List>
+                            </Box>
+                          )}
+
+                          {plan.kpis?.length > 0 && (
+                            <Box sx={{ mb: 2 }}>
+                              <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>KPI</Typography>
+                              <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                                {plan.kpis.map((kpi, i) => (
+                                  <Chip key={i} label={kpi} size="small" variant="outlined" color="primary" />
+                                ))}
+                              </Box>
+                            </Box>
+                          )}
+
+                          <Box sx={{ display: 'flex', gap: 1, mt: 2, flexWrap: 'wrap' }}>
+                            {plan.estimated_effort && <Chip label={`인력: ${plan.estimated_effort}`} size="small" variant="outlined" />}
+                            <Button size="small" variant="contained" onClick={() => handleAddAIPlanItem(plan)} startIcon={<AddIcon />}>
+                              내 계획에 추가
+                            </Button>
+                          </Box>
+                        </AccordionDetails>
+                      </Accordion>
+                    ))}
+                  </Box>
+                );
+              })}
+
+              <Box sx={{ textAlign: 'center', mt: 2 }}>
+                <Button variant="outlined" onClick={() => {
+                  aiPlans.forEach(p => handleAddAIPlanItem(p));
+                }}>
+                  전체 추가
+                </Button>
+              </Box>
+            </>
+          )}
+        </Box>
+      )}
+
       <Snackbar open={snackbar.open} autoHideDuration={4000} onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}>
         <Alert severity={snackbar.severity} onClose={() => setSnackbar(prev => ({ ...prev, open: false }))}>{snackbar.message}</Alert>
       </Snackbar>
+
+      {/* AI 코칭 챗봇 FAB */}
+      <Fab
+        color="secondary"
+        sx={{ position: 'fixed', bottom: 24, right: 24, zIndex: 1000 }}
+        onClick={() => setChatOpen(true)}
+      >
+        <ChatIcon />
+      </Fab>
+
+      <AIChatPanel
+        open={chatOpen}
+        onClose={() => setChatOpen(false)}
+        surveyResultId={0}
+        userInfo={userInfo}
+        categoryScores={surveyResult?.categoryScores || {}}
+        totalScore={surveyResult?.totalScore || 0}
+      />
     </Box>
   );
 }

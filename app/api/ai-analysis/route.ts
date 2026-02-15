@@ -1,179 +1,106 @@
 import { NextResponse } from 'next/server';
+import { supabase } from '../../lib/supabase';
+import { callOpenAI, parseJsonResponse, getSystemPrompt, getMaturityLevel, generateDefaultAnalysis, CATEGORY_NAMES } from '../../lib/ai-utils';
+import { StructuredAnalysis } from '../../types/ai';
 
-// 기본 분석 생성 함수 (API 키 없거나 오류 시 사용)
-const generateDefaultAnalysis = () => {
-  return `## 진단 결과 분석
+// 구조화된 AI 심층 분석 생성
+async function generateStructuredAnalysis(
+  userInfo: any,
+  resultData: any,
+  benchmarkData?: any
+): Promise<StructuredAnalysis> {
+  const scores = resultData.categoryScores;
+  const scoreEntries = Object.entries(scores).map(([key, score]) => ({
+    key,
+    name: CATEGORY_NAMES[key] || key,
+    score: Number(score)
+  }));
 
-귀하의 SCM 성숙도 진단 결과를 분석한 결과, 전반적으로 보통 수준의 성숙도를 보이고 있습니다.
+  const sorted = [...scoreEntries].sort((a, b) => a.score - b.score);
+  const weakest = sorted[0];
+  const strongest = sorted[sorted.length - 1];
+  const avg = scoreEntries.reduce((s, e) => s + e.score, 0) / scoreEntries.length;
+  const stdDev = Math.sqrt(scoreEntries.reduce((s, e) => s + Math.pow(e.score - avg, 2), 0) / scoreEntries.length);
 
-## 우선 개선 영역 및 방안
+  const benchmarkContext = benchmarkData
+    ? scoreEntries.map(e => {
+        const bm = benchmarkData[e.key];
+        return bm
+          ? `- ${e.name}: ${e.score.toFixed(1)}점 (업종 평균: ${bm.avg.toFixed(1)}, 상위 ${bm.percentile}%)`
+          : `- ${e.name}: ${e.score.toFixed(1)}점`;
+      }).join('\n')
+    : scoreEntries.map(e => `- ${e.name}: ${e.score.toFixed(1)}점 (${getMaturityLevel(e.score)} 수준)`).join('\n');
 
-**1. 재고 관리 개선**
-- ABC 분석을 통한 재고 분류 체계 구축
-- 재고 예측 모델 정확도 향상
-- 재고 회전율 목표 설정 및 모니터링
+  const prompt = `다음은 ${userInfo?.company || '기업'}의 SCM 성숙도 진단 결과입니다.
 
-**2. 계획 관리 체계화**
-- S&OP 프로세스 정착
-- 수요 예측 정확도 향상
-- 계획 실행 결과 분석 및 피드백 체계
-
-**3. 조달 관리 최적화**
-- 공급업체 평가 체계 구축
-- 조달 비용 최적화
-- 공급업체와의 협력 관계 강화
-
-## 강점 활용 전략
-
-- 우수한 영역의 베스트 프랙티스를 다른 영역에 적용
-- 부서 간 협력 체계를 활용하여 전사적 개선 추진
-
-## 단계별 개선 로드맵
-
-**단기 (3개월)**
-- 재고 관리 시스템 구축
-- 공급업체 평가 기준 수립
-- 계획 수립 프로세스 표준화
-
-**중기 (6개월)**
-- S&OP 프로세스 정착
-- 재고 예측 모델 고도화
-- 물류 네트워크 최적화
-
-**장기 (1년)**
-- 전사적 SCM 성숙도 향상
-- 디지털 트랜스포메이션 추진
-- 지속가능한 SCM 체계 구축
-
-## 예상 효과 및 KPI
-
-- 재고 회전율 20% 향상
-- 수요 예측 정확도 30% 향상
-- 재고 관리 비용 15% 절감
-
-## 주의사항 및 리스크 관리
-
-- 단계적 접근으로 조직 저항 최소화
-- 충분한 교육 및 훈련 제공
-- 정기적인 성과 측정 및 피드백
-
-이 분석은 기본 템플릿을 기반으로 생성되었습니다. 더 정확한 분석을 위해서는 OpenAI API 키를 설정해주세요.`;
-};
-
-// OpenAI API 호출 함수
-const callOpenAI = async (prompt: string) => {
-  const apiKey = process.env.OPENAI_API_KEY;
-
-  if (!apiKey) {
-    console.log('OpenAI API 키가 설정되지 않아 기본 분석을 제공합니다.');
-    return generateDefaultAnalysis();
-  }
-
-  try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        messages: [
-          {
-            role: 'system',
-            content: '당신은 SCM(공급망 관리) 전문가입니다. 진단 결과를 바탕으로 구체적이고 실용적인 개선 방안을 제시해주세요.'
-          },
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        max_tokens: 2000,
-        temperature: 0.7
-      })
-    });
-
-    if (!response.ok) {
-      console.error('OpenAI API 호출 실패:', response.status);
-      return generateDefaultAnalysis();
-    }
-
-    const data = await response.json();
-    return data.choices[0].message.content;
-  } catch (error) {
-    console.error('OpenAI API 호출 오류:', error);
-    return generateDefaultAnalysis();
-  }
-};
-
-// 개선 방안 생성 함수
-const generateImprovementPlan = async (userInfo: any, resultData: any) => {
-  const categoryNames = {
-    planning: '계획 관리',
-    procurement: '조달 관리',
-    inventory: '재고 관리',
-    production: '생산 관리',
-    logistics: '물류 관리',
-    integration: '통합 관리'
-  };
-
-  const getMaturityLevel = (score: number): string => {
-    if (score >= 4.5) return '최적화';
-    if (score >= 3.5) return '표준화';
-    if (score >= 2.5) return '체계화';
-    if (score >= 1.5) return '기본';
-    return '초기';
-  };
-
-  const prompt = `
-다음은 ${userInfo?.company || '기업'}의 SCM 성숙도 진단 결과입니다.
-
-**진단자 정보:**
-- 이름: ${userInfo?.name || '미입력'}
+[기업 정보]
 - 회사: ${userInfo?.company || '미입력'}
-- 종합 점수: ${resultData.totalScore.toFixed(1)}점
+- 업종: ${userInfo?.industry || '미입력'}
+- 기업 규모: ${userInfo?.companySize || '미입력'}
+- 종합 점수: ${resultData.totalScore.toFixed(1)}/5.0 (${getMaturityLevel(resultData.totalScore)} 수준)
 
-**영역별 진단 결과:**
-${Object.entries(resultData.categoryScores).map(([category, score]) =>
-  `- ${categoryNames[category as keyof typeof categoryNames]}: ${Number(score).toFixed(1)}점 (${getMaturityLevel(Number(score))} 수준)`
-).join('\n')}
+[영역별 점수]
+${benchmarkContext}
 
-**분석 요청사항:**
-1. 가장 개선이 필요한 영역 3개에 대한 구체적인 개선 방안 제시
-2. 현재 강점 영역을 활용한 전략적 접근 방안
-3. 단기(3개월), 중기(6개월), 장기(1년) 개선 로드맵
-4. 예상 효과 및 KPI 제안
-5. 실행 시 주의사항 및 리스크 관리 방안
+[점수 패턴 분석]
+- 가장 약한 영역: ${weakest.name} (${weakest.score.toFixed(1)}점)
+- 가장 강한 영역: ${strongest.name} (${strongest.score.toFixed(1)}점)
+- 영역 간 편차(표준편차): ${stdDev.toFixed(2)}
+- 전체 성숙도 수준: ${getMaturityLevel(resultData.totalScore)}
 
-다음 형식으로 답변해주세요:
+다음 JSON 형식으로 심층 분석 결과를 제공해주세요. 반드시 이 JSON 구조를 정확히 따라주세요:
 
-## 진단 결과 분석
+{
+  "executive_summary": "경영진 대상 2-3문장 핵심 요약. 구체적 점수를 인용하세요.",
+  "overall_assessment": "전반적 진단 평가 3-5문장. 성숙도 수준의 의미와 전략적 시사점을 설명하세요.",
+  "category_analyses": [
+    {
+      "category_key": "카테고리키 (planning/procurement/inventory/production/logistics/integration)",
+      "category_name": "한국어 카테고리명",
+      "score": 점수(숫자),
+      "root_causes": ["이 점수의 근본 원인 1", "근본 원인 2", "근본 원인 3"],
+      "impact": "이 영역의 낮은/높은 점수가 사업 운영에 미치는 실질적 영향 설명",
+      "quick_wins": ["비용 없이 즉시 실행 가능한 개선 1", "즉시 실행 가능한 개선 2", "즉시 실행 가능한 개선 3"],
+      "next_level_gap": "현재 수준에서 다음 성숙도 수준으로 올라가기 위한 핵심 과제"
+    }
+  ],
+  "priority_matrix": {
+    "high_impact_low_effort": ["높은 효과 + 쉬운 실행 항목들 (3-4개)"],
+    "high_impact_high_effort": ["높은 효과 + 어려운 실행 항목들 (2-3개)"],
+    "low_impact_low_effort": ["낮은 효과 + 쉬운 실행 항목들 (1-2개)"],
+    "low_impact_high_effort": ["낮은 효과 + 어려운 실행 항목들 (1-2개)"]
+  },
+  "interdependencies": [
+    "영역 간 상호작용 인사이트 1 (예: 계획 관리 약점이 재고 관리에 미치는 영향)",
+    "영역 간 상호작용 인사이트 2",
+    "영역 간 상호작용 인사이트 3"
+  ],
+  "industry_context": "해당 업종(${userInfo?.industry || '일반'})과 기업 규모(${userInfo?.companySize || '중소기업'})에서 이 진단 결과가 갖는 의미와 시사점. 해당 업종의 SCM 트렌드와 벤치마크를 포함하세요."
+}
 
-## 우선 개선 영역 및 방안
+중요 지침:
+- 모든 6개 카테고리(planning, procurement, inventory, production, logistics, integration)를 category_analyses에 포함하세요.
+- 점수가 낮은 카테고리일수록 더 구체적인 root_causes와 quick_wins를 제시하세요.
+- quick_wins는 중소기업이 추가 비용 없이 당장 시작할 수 있는 것만 포함하세요.
+- 한국 정부 지원사업(스마트공장, 디지털전환 지원 등)을 industry_context에서 언급하세요.`;
 
-## 강점 활용 전략
+  const messages = [
+    { role: 'system', content: getSystemPrompt() },
+    { role: 'user', content: prompt }
+  ];
 
-## 단계별 개선 로드맵
+  const response = await callOpenAI(messages, {
+    jsonMode: true,
+    maxTokens: 3500,
+    temperature: 0.4
+  });
 
-## 예상 효과 및 KPI
-
-## 주의사항 및 리스크 관리
-
-답변은 한국어로 작성하고, 구체적이고 실용적인 내용으로 구성해주세요.
-`;
-
-  try {
-    const aiResponse = await callOpenAI(prompt);
-    return aiResponse;
-  } catch (error) {
-    console.error('AI 분석 생성 오류:', error);
-    return generateDefaultAnalysis();
-  }
-};
+  return parseJsonResponse<StructuredAnalysis>(response);
+}
 
 export async function POST(request: Request) {
   try {
-    const { userInfo, resultData } = await request.json();
+    const { userInfo, resultData, benchmarkData } = await request.json();
 
     if (!resultData) {
       return NextResponse.json(
@@ -182,13 +109,61 @@ export async function POST(request: Request) {
       );
     }
 
-    const aiAnalysis = await generateImprovementPlan(userInfo, resultData);
+    // 캐시 확인: 이미 분석된 결과가 있으면 반환
+    if (resultData.id) {
+      try {
+        const { data: cached } = await supabase
+          .from('survey_results')
+          .select('ai_analysis_json, ai_generated_at')
+          .eq('id', resultData.id)
+          .single();
 
-    return NextResponse.json({
-      success: true,
-      analysis: aiAnalysis
-    });
+        if (cached?.ai_analysis_json) {
+          return NextResponse.json({
+            success: true,
+            analysis: cached.ai_analysis_json,
+            cached: true
+          });
+        }
+      } catch (e) {
+        // 캐시 조회 실패 시 무시하고 새로 생성
+      }
+    }
 
+    // AI 분석 생성
+    try {
+      const analysis = await generateStructuredAnalysis(userInfo, resultData, benchmarkData);
+
+      // Supabase에 캐싱
+      if (resultData.id) {
+        try {
+          await supabase
+            .from('survey_results')
+            .update({
+              ai_analysis_json: analysis,
+              ai_generated_at: new Date().toISOString()
+            })
+            .eq('id', resultData.id);
+        } catch (e) {
+          // 캐싱 실패는 무시
+        }
+      }
+
+      return NextResponse.json({
+        success: true,
+        analysis,
+        cached: false
+      });
+    } catch (aiError) {
+      console.error('AI 분석 생성 실패, fallback 사용:', aiError);
+      const fallback = generateDefaultAnalysis();
+      return NextResponse.json({
+        success: true,
+        analysis: fallback,
+        isFallback: true,
+        message: 'AI 분석을 사용할 수 없어 기본 분석을 제공합니다.'
+      });
+    }
   } catch (error) {
     console.error('AI 분석 API 오류:', error);
     return NextResponse.json(
