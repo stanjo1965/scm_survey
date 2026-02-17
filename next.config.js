@@ -40,8 +40,7 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: true,
   },
-  // Windows 환경에서 파일 시스템 안정성
-  outputFileTracing: false, // 파일 추적 비활성화
+  output: process.env.DOCKER_BUILD === '1' ? 'standalone' : undefined,
   poweredByHeader: false,
   reactStrictMode: true, // 개발 중 Strict Mode 비활성화
 };

@@ -1,5 +1,18 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '../../../lib/supabase';
+import { query, queryOne } from '../../../lib/db';
+
+// PostgreSQL numeric 필드를 숫자로 변환
+function parseNumericFields(row: any) {
+  if (!row) return row;
+  const numericKeys = ['total_score', 'score', 'max_score', 'answer_value'];
+  const parsed = { ...row };
+  for (const key of numericKeys) {
+    if (key in parsed && parsed[key] !== null) {
+      parsed[key] = Number(parsed[key]);
+    }
+  }
+  return parsed;
+}
 
 // GET: 설문 결과 목록 조회
 export async function GET(request: Request) {
@@ -9,56 +22,41 @@ export async function GET(request: Request) {
 
     if (id) {
       // 특정 결과 상세 조회
-      const { data: result, error } = await supabase
-        .from('survey_results')
-        .select('*')
-        .eq('id', id)
-        .single();
+      const result = await queryOne('SELECT * FROM survey_results WHERE id = $1', [id]);
 
-      if (error) {
-        return NextResponse.json({ success: false, message: error.message }, { status: 500 });
+      if (!result) {
+        return NextResponse.json({ success: false, message: '결과를 찾을 수 없습니다.' }, { status: 404 });
       }
 
       // 카테고리 분석 조회
-      const { data: analysis } = await supabase
-        .from('category_analysis')
-        .select('*')
-        .eq('survey_result_id', id);
+      const analysis = await query('SELECT * FROM category_analysis WHERE survey_result_id = $1', [id]);
 
       // 개별 답변 조회
-      const { data: answers } = await supabase
-        .from('survey_answers')
-        .select('*')
-        .eq('survey_result_id', id);
+      const answers = await query('SELECT * FROM survey_answers WHERE survey_result_id = $1', [id]);
 
-      return NextResponse.json({ success: true, result, analysis, answers });
+      return NextResponse.json({
+        success: true,
+        result: parseNumericFields(result),
+        analysis: analysis.map(parseNumericFields),
+        answers: answers.map(parseNumericFields),
+      });
     }
 
     // 전체 결과 목록 조회
-    const { data: results, error } = await supabase
-      .from('survey_results')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      return NextResponse.json({ success: false, message: error.message }, { status: 500 });
-    }
+    const results = await query('SELECT * FROM survey_results ORDER BY created_at DESC');
 
     // 통계 데이터
-    const totalCount = results?.length || 0;
+    const totalCount = results.length;
     const avgScore = totalCount > 0
-      ? results.reduce((sum: number, r: any) => sum + (r.total_score || 0), 0) / totalCount
+      ? results.reduce((sum: number, r: any) => sum + (Number(r.total_score) || 0), 0) / totalCount
       : 0;
 
     // 카테고리 정보
-    const { data: categories } = await supabase
-      .from('category')
-      .select('*')
-      .order('id', { ascending: true });
+    const categories = await query('SELECT * FROM category ORDER BY id ASC');
 
     return NextResponse.json({
       success: true,
-      results,
+      results: results.map(parseNumericFields),
       stats: { totalCount, avgScore },
       categories
     });

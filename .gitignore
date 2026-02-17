@@ -55,3 +55,21 @@ jspm_packages/
 
 # Yarn Integrity file
 .yarn-integrity
+
+# AWS deployment
+deploy-config.json
+build-id.txt
+source.zip
+source.tar.gz
+
+# Scripts with credentials
+migrate-data.js
+setup-rds.js
+setup-ecs.js
+setup-alb.js
+deploy-aws.js
+check-logs.js
+check-ecs-logs.js
+check-service.js
+create-zip.js
+upload-and-build.js

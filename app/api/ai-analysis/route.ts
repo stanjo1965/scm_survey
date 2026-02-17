@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '../../lib/supabase';
+import { queryOne, execute } from '../../lib/db';
 import { callOpenAI, parseJsonResponse, getSystemPrompt, getMaturityLevel, generateDefaultAnalysis, CATEGORY_NAMES } from '../../lib/ai-utils';
 import { StructuredAnalysis } from '../../types/ai';
 
@@ -112,11 +112,10 @@ export async function POST(request: Request) {
     // 캐시 확인: 이미 분석된 결과가 있으면 반환
     if (resultData.id) {
       try {
-        const { data: cached } = await supabase
-          .from('survey_results')
-          .select('ai_analysis_json, ai_generated_at')
-          .eq('id', resultData.id)
-          .single();
+        const cached = await queryOne<{ ai_analysis_json: any; ai_generated_at: string }>(
+          'SELECT ai_analysis_json, ai_generated_at FROM survey_results WHERE id = $1',
+          [resultData.id]
+        );
 
         if (cached?.ai_analysis_json) {
           return NextResponse.json({
@@ -125,7 +124,7 @@ export async function POST(request: Request) {
             cached: true
           });
         }
-      } catch (e) {
+      } catch {
         // 캐시 조회 실패 시 무시하고 새로 생성
       }
     }
@@ -134,17 +133,14 @@ export async function POST(request: Request) {
     try {
       const analysis = await generateStructuredAnalysis(userInfo, resultData, benchmarkData);
 
-      // Supabase에 캐싱
+      // DB에 캐싱
       if (resultData.id) {
         try {
-          await supabase
-            .from('survey_results')
-            .update({
-              ai_analysis_json: analysis,
-              ai_generated_at: new Date().toISOString()
-            })
-            .eq('id', resultData.id);
-        } catch (e) {
+          await execute(
+            'UPDATE survey_results SET ai_analysis_json = $1, ai_generated_at = $2 WHERE id = $3',
+            [JSON.stringify(analysis), new Date().toISOString(), resultData.id]
+          );
+        } catch {
           // 캐싱 실패는 무시
         }
       }

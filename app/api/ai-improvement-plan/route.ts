@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '../../lib/supabase';
+import { query, execute } from '../../lib/db';
 import { callOpenAI, parseJsonResponse, getSystemPrompt, CATEGORY_NAMES } from '../../lib/ai-utils';
 import { allImprovementItems } from '../../lib/scm-framework';
 
@@ -14,16 +14,14 @@ export async function POST(request: Request) {
     // 캐시 확인: 기존 AI 개선계획이 있으면 반환
     if (surveyResultId) {
       try {
-        const { data: existing } = await supabase
-          .from('ai_improvement_plans')
-          .select('*')
-          .eq('survey_result_id', surveyResultId)
-          .order('order_index', { ascending: true });
-
-        if (existing && existing.length > 0) {
+        const existing = await query(
+          'SELECT * FROM ai_improvement_plans WHERE survey_result_id = $1 ORDER BY order_index ASC',
+          [surveyResultId]
+        );
+        if (existing.length > 0) {
           return NextResponse.json({ success: true, plans: existing, cached: true });
         }
-      } catch (e) {
+      } catch {
         // 테이블 없으면 무시
       }
     }
@@ -110,14 +108,32 @@ ${frameworkRef || '해당 없음'}
         created_at: new Date().toISOString()
       }));
 
-      // Supabase에 저장
+      // DB에 저장
       if (surveyResultId && plans.length > 0) {
         try {
-          // 기존 삭제
-          await supabase.from('ai_improvement_plans').delete().eq('survey_result_id', surveyResultId);
-          await supabase.from('ai_improvement_plans').insert(plans);
-        } catch (e) {
-          // 저장 실패 무시 (테이블 없을 수 있음)
+          await execute('DELETE FROM ai_improvement_plans WHERE survey_result_id = $1', [surveyResultId]);
+
+          const values: any[] = [];
+          const placeholders: string[] = [];
+          let idx = 1;
+          for (const p of plans) {
+            placeholders.push(
+              `($${idx}, $${idx+1}, $${idx+2}, $${idx+3}, $${idx+4}, $${idx+5}, $${idx+6}, $${idx+7}, $${idx+8}, $${idx+9}, $${idx+10}, $${idx+11}, $${idx+12}, $${idx+13}, $${idx+14}, $${idx+15})`
+            );
+            values.push(
+              p.survey_result_id, p.phase, p.phase_label, p.category_key,
+              p.title, p.description, JSON.stringify(p.actions), JSON.stringify(p.kpis),
+              JSON.stringify(p.expected_outcomes), p.priority, p.estimated_budget, p.estimated_effort,
+              p.order_index, p.status, JSON.stringify(p.checked_actions), p.created_at
+            );
+            idx += 16;
+          }
+          await execute(
+            `INSERT INTO ai_improvement_plans (survey_result_id, phase, phase_label, category_key, title, description, actions, kpis, expected_outcomes, priority, estimated_budget, estimated_effort, order_index, status, checked_actions, created_at) VALUES ${placeholders.join(', ')}`,
+            values
+          );
+        } catch {
+          // 저장 실패 무시
         }
       }
 

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '../../lib/supabase';
+import { query, queryOne, execute } from '../../lib/db';
 import nodemailer from 'nodemailer';
 
 // 이메일 발송 함수
@@ -141,48 +141,33 @@ export async function POST(request: Request) {
     }
 
     // 기존 결과 확인 (user_email + company_id 기준)
-    const { data: existingResults } = await supabase
-      .from('survey_results')
-      .select('id')
-      .eq('user_email', userEmail || '')
-      .eq('company_id', companyId);
+    const existingResults = await query(
+      'SELECT id FROM survey_results WHERE user_email = $1 AND company_id = $2',
+      [userEmail || '', companyId]
+    );
 
     let resultId: number;
 
-    if (existingResults && existingResults.length > 0) {
+    if (existingResults.length > 0) {
       // 기존 결과 업데이트
       resultId = existingResults[0].id;
-      await supabase
-        .from('survey_results')
-        .update({
-          updated_at: new Date().toISOString(),
-          user_name: userName || '게스트',
-          industry: industry || null,
-          company_size: companySize || null
-        })
-        .eq('id', resultId);
+      await execute(
+        'UPDATE survey_results SET updated_at = $1, user_name = $2, industry = $3, company_size = $4 WHERE id = $5',
+        [new Date().toISOString(), userName || '게스트', industry || null, companySize || null, resultId]
+      );
 
       // 기존 답변 및 카테고리 분석 삭제
-      await supabase.from('survey_answers').delete().eq('survey_result_id', resultId);
-      await supabase.from('category_analysis').delete().eq('survey_result_id', resultId);
+      await execute('DELETE FROM survey_answers WHERE survey_result_id = $1', [resultId]);
+      await execute('DELETE FROM category_analysis WHERE survey_result_id = $1', [resultId]);
     } else {
       // 새 결과 생성
-      const { data: newResult, error: insertError } = await supabase
-        .from('survey_results')
-        .insert({
-          user_email: userEmail || '',
-          user_name: userName || '게스트',
-          company_id: companyId,
-          industry: industry || null,
-          company_size: companySize || null,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        })
-        .select('id')
-        .single();
+      const newResult = await queryOne<{ id: number }>(
+        `INSERT INTO survey_results (user_email, user_name, company_id, industry, company_size, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $6) RETURNING id`,
+        [userEmail || '', userName || '게스트', companyId, industry || null, companySize || null, new Date().toISOString()]
+      );
 
-      if (insertError || !newResult) {
-        console.error('survey_results insert error:', insertError);
+      if (!newResult) {
         return NextResponse.json(
           { message: '결과 저장에 실패했습니다.' },
           { status: 500 }
@@ -192,29 +177,28 @@ export async function POST(request: Request) {
     }
 
     // 답변 일괄 저장
-    const answerRows = Object.entries(answers).map(([questionId, answerValue]) => ({
-      survey_result_id: resultId,
-      question_id: questionId,
-      answer_value: Number(answerValue),
-      created_at: new Date().toISOString()
-    }));
-
-    const { error: answersError } = await supabase
-      .from('survey_answers')
-      .insert(answerRows);
-
-    if (answersError) {
-      console.error('survey_answers insert error:', answersError);
+    const answerEntries = Object.entries(answers);
+    if (answerEntries.length > 0) {
+      const values: any[] = [];
+      const placeholders: string[] = [];
+      let idx = 1;
+      for (const [questionId, answerValue] of answerEntries) {
+        placeholders.push(`($${idx}, $${idx + 1}, $${idx + 2}, $${idx + 3})`);
+        values.push(resultId, questionId, Number(answerValue), new Date().toISOString());
+        idx += 4;
+      }
+      await execute(
+        `INSERT INTO survey_answers (survey_result_id, question_id, answer_value, created_at) VALUES ${placeholders.join(', ')}`,
+        values
+      );
     }
 
     // 설문 질문 데이터 (가중치 정보 포함) DB에서 가져오기
-    const { data: surveyQuestions, error: surveyQuestionsError } = await supabase
-      .from('category_question')
-      .select('question_id, category_id, question, weight')
-      .eq('isactive', true);
+    const surveyQuestions = await query(
+      'SELECT question_id, category_id, question, weight FROM category_question WHERE isactive = true'
+    );
 
-    if (surveyQuestionsError) {
-      console.error('Error fetching survey questions:', surveyQuestionsError);
+    if (!surveyQuestions || surveyQuestions.length === 0) {
       return NextResponse.json(
         { message: '설문 질문 데이터 조회 오류' },
         { status: 500 }
@@ -222,20 +206,11 @@ export async function POST(request: Request) {
     }
 
     // 카테고리명 DB에서 가져오기
-    const { data: categoryData, error: categoryFetchError } = await supabase
-      .from('category')
-      .select('id, key, title')
-      .order('id', { ascending: true });
-
-    if (categoryFetchError) {
-      console.error('Error fetching categories:', categoryFetchError);
-    }
+    const categoryData = await query('SELECT id, key, title FROM category ORDER BY id ASC');
 
     const categoryNames: Record<string, string> = {};
-    if (categoryData) {
-      for (const row of categoryData) {
-        categoryNames[row.key] = row.title;
-      }
+    for (const row of categoryData) {
+      categoryNames[row.key] = row.title;
     }
 
     // 카테고리별 점수 계산 (가중치 고려)
@@ -247,9 +222,9 @@ export async function POST(request: Request) {
     }
 
     for (const [questionId, answer] of Object.entries(answers)) {
-      const question = surveyQuestions?.find((q: any) => q.question_id === questionId);
+      const question = surveyQuestions.find((q: any) => q.question_id === questionId);
       if (question) {
-        const categoryRow = categoryData?.find((cat: any) => String(cat.id) === String(question.category_id));
+        const categoryRow = categoryData.find((cat: any) => String(cat.id) === String(question.category_id));
         const categoryKey = categoryRow?.key;
         if (categoryKey && categoryScores.hasOwnProperty(categoryKey)) {
           const weightedScore = Number(answer) * question.weight;
@@ -273,26 +248,23 @@ export async function POST(request: Request) {
       : 0;
 
     // total_score 업데이트
-    await supabase
-      .from('survey_results')
-      .update({ total_score: totalScore })
-      .eq('id', resultId);
+    await execute('UPDATE survey_results SET total_score = $1 WHERE id = $2', [totalScore, resultId]);
 
     // 카테고리 분석 결과 일괄 저장
-    const analysisRows = Object.entries(categoryScores).map(([category, score]) => ({
-      survey_result_id: resultId,
-      category,
-      score,
-      max_score: 5,
-      created_at: new Date().toISOString()
-    }));
-
-    const { error: analysisError } = await supabase
-      .from('category_analysis')
-      .insert(analysisRows);
-
-    if (analysisError) {
-      console.error('category_analysis insert error:', analysisError);
+    const analysisEntries = Object.entries(categoryScores);
+    if (analysisEntries.length > 0) {
+      const values: any[] = [];
+      const placeholders: string[] = [];
+      let idx = 1;
+      for (const [category, score] of analysisEntries) {
+        placeholders.push(`($${idx}, $${idx + 1}, $${idx + 2}, $${idx + 3}, $${idx + 4})`);
+        values.push(resultId, category, score, 5, new Date().toISOString());
+        idx += 5;
+      }
+      await execute(
+        `INSERT INTO category_analysis (survey_result_id, category, score, max_score, created_at) VALUES ${placeholders.join(', ')}`,
+        values
+      );
     }
 
     // 이메일 발송

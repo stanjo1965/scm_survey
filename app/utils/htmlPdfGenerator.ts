@@ -1,6 +1,5 @@
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
-import { supabase } from '../lib/supabase';
 
 interface SurveyResult {
   id: string | number;
@@ -606,47 +605,9 @@ export const generateHTMLToPDF = async (surveyResult: SurveyResult, companyName:
   }
 };
 
-export async function getCategoryQuestionScoresDetailed(surveyResultId: string) {
-  // 1. 모든 답변 조회
-  const { data: answers, error: answersError } = await supabase
-    .from('survey_answers')
-    .select('question_id, answer_value')
-    .eq('survey_result_id', surveyResultId);
-  if (answersError) throw answersError;
-
-  // 2. 모든 질문 정보 조회
-  const { data: questions, error: questionsError } = await supabase
-    .from('category_question')
-    .select('question_id, category_id, question, weight')
-    .eq('isactive', true);
-  if (questionsError) throw questionsError;
-
-  // 3. 모든 카테고리 정보 조회
-  const { data: categories, error: categoriesError } = await supabase
-    .from('category')
-    .select('id, key, title');
-  if (categoriesError) throw categoriesError;
-
-  // 4. category별 질문별 점수 배열 생성
-  const result: Record<string, Array<{ questionId: string; question: string; score: number; weight: number }>> = {};
-  for (const cat of categories) {
-    result[cat.key] = [];
-  }
-
-  for (const answer of answers) {
-    const question = questions.find(q => q.question_id === answer.question_id);
-    if (question) {
-      const category = categories.find(c => c.id === question.category_id);
-      if (category) {
-        result[category.key].push({
-          questionId: answer.question_id,
-          question: question.question,
-          score: answer.answer_value,
-          weight: question.weight
-        });
-      }
-    }
-  }
-
-  return result; // { planning: [{questionId, question, score, weight}, ...], ... }
+export async function getCategoryQuestionScoresDetailed(surveyResultId: string | number) {
+  const res = await fetch(`/api/survey-details?result_id=${surveyResultId}`);
+  const json = await res.json();
+  if (!json.success) throw new Error(json.message || 'Failed to fetch survey details');
+  return json.data;
 }

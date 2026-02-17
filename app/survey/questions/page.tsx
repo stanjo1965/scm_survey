@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { supabase } from '../../lib/supabase';
 import { useRouter } from 'next/navigation';
 import {
   Box,
@@ -35,53 +34,55 @@ export default function SurveyQuestionsPage() {
   const [surveyQuestions, setSurveyQuestions] = useState<Array<{ id: string; category: string; question: string; weight: number }>>([]);
   const [loading, setLoading] = useState(false);
 
-  // 카테고리 및 질문 데이터 Supabase에서 가져오기
+  // 카테고리 및 질문 데이터 API에서 가져오기
   useEffect(() => {
     async function fetchData() {
-      const { data: catData, error: catError } = await supabase.from('category').select('id, key, title');
-      if (catError) {
-        console.error('Error fetching categories:', catError);
-      }
+      try {
+        const res = await fetch('/api/admin/questions');
+        const json = await res.json();
+        if (!json.success) {
+          console.error('Error fetching questions:', json.message);
+          return;
+        }
 
-      if (catData) {
-        const categoryColors: Record<string, string> = {
-          planning: '#1976d2',
-          procurement: '#388e3c',
-          inventory: '#f57c00',
-          production: '#7b1fa2',
-          logistics: '#d32f2f',
-          integration: '#1976d2',
-        };
+        const catData = json.categories;
+        const qData = json.questions;
 
-        const merged = catData.map((cat: any) => ({
-          id: cat.id,
-          key: cat.key,
-          name: cat.title,
-          color: categoryColors[cat.key] || '#1976d2',
-        }));
-
-        setCategories(merged);
-      }
-
-      const { data: qData, error: qError } = await supabase
-        .from('category_question')
-        .select('question_id, category_id, question, weight')
-        .eq('isactive', true);
-      if (qError) {
-        console.error('Error fetching questions:', qError);
-      }
-
-      if (qData && catData) {
-        const questions = qData.map((q: any) => {
-          const categoryObj = catData.find((cat: any) => cat.id === q.category_id);
-          return {
-            id: q.question_id,
-            category: categoryObj?.key || '',
-            question: q.question,
-            weight: q.weight,
+        if (catData) {
+          const categoryColors: Record<string, string> = {
+            planning: '#1976d2',
+            procurement: '#388e3c',
+            inventory: '#f57c00',
+            production: '#7b1fa2',
+            logistics: '#d32f2f',
+            integration: '#1976d2',
           };
-        });
-        setSurveyQuestions(questions);
+
+          const merged = catData.map((cat: any) => ({
+            id: cat.id,
+            key: cat.key,
+            name: cat.title,
+            color: categoryColors[cat.key] || '#1976d2',
+          }));
+
+          setCategories(merged);
+        }
+
+        if (qData && catData) {
+          const activeQuestions = qData.filter((q: any) => q.isactive);
+          const questions = activeQuestions.map((q: any) => {
+            const categoryObj = catData.find((cat: any) => cat.id === q.category_id);
+            return {
+              id: q.question_id,
+              category: categoryObj?.key || '',
+              question: q.question,
+              weight: q.weight,
+            };
+          });
+          setSurveyQuestions(questions);
+        }
+      } catch (error) {
+        console.error('Error fetching survey data:', error);
       }
     }
     fetchData();

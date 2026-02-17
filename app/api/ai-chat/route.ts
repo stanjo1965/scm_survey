@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '../../lib/supabase';
+import { query, queryOne, execute } from '../../lib/db';
 import { callOpenAI, getSystemPrompt, getMaturityLevel, CATEGORY_NAMES } from '../../lib/ai-utils';
 
 export async function POST(request: Request) {
@@ -15,21 +15,15 @@ export async function POST(request: Request) {
     // 새 세션 생성
     if (!currentSessionId) {
       try {
-        const { data: session, error } = await supabase
-          .from('ai_chat_sessions')
-          .insert({
-            survey_result_id: surveyResultId || null,
-            title: message.substring(0, 50),
-            created_at: new Date().toISOString()
-          })
-          .select('id')
-          .single();
-
-        if (!error && session) {
+        const session = await queryOne<{ id: number }>(
+          `INSERT INTO ai_chat_sessions (survey_result_id, title, created_at)
+           VALUES ($1, $2, $3) RETURNING id`,
+          [surveyResultId || null, message.substring(0, 50), new Date().toISOString()]
+        );
+        if (session) {
           currentSessionId = session.id;
         }
-      } catch (e) {
-        // 테이블 없으면 세션 없이 진행
+      } catch {
         currentSessionId = null;
       }
     }
@@ -38,17 +32,12 @@ export async function POST(request: Request) {
     let previousMessages: { role: string; content: string }[] = [];
     if (currentSessionId) {
       try {
-        const { data: history } = await supabase
-          .from('ai_chat_messages')
-          .select('role, content')
-          .eq('session_id', currentSessionId)
-          .order('created_at', { ascending: true })
-          .limit(10);
-
-        if (history) {
-          previousMessages = history.map(h => ({ role: h.role, content: h.content }));
-        }
-      } catch (e) {
+        const history = await query(
+          'SELECT role, content FROM ai_chat_messages WHERE session_id = $1 ORDER BY created_at ASC LIMIT 10',
+          [currentSessionId]
+        );
+        previousMessages = history.map((h: any) => ({ role: h.role, content: h.content }));
+      } catch {
         // 히스토리 로드 실패 무시
       }
     }
@@ -90,28 +79,19 @@ export async function POST(request: Request) {
         maxTokens: 800,
         temperature: 0.7
       });
-    } catch (e) {
+    } catch {
       aiResponse = '죄송합니다. AI 서비스에 일시적인 문제가 발생했습니다. 잠시 후 다시 시도해주세요.';
     }
 
     // 메시지 저장
     if (currentSessionId) {
       try {
-        await supabase.from('ai_chat_messages').insert([
-          {
-            session_id: currentSessionId,
-            role: 'user',
-            content: message,
-            created_at: new Date().toISOString()
-          },
-          {
-            session_id: currentSessionId,
-            role: 'assistant',
-            content: aiResponse,
-            created_at: new Date().toISOString()
-          }
-        ]);
-      } catch (e) {
+        const now = new Date().toISOString();
+        await execute(
+          `INSERT INTO ai_chat_messages (session_id, role, content, created_at) VALUES ($1, $2, $3, $4), ($1, $5, $6, $4)`,
+          [currentSessionId, 'user', message, now, 'assistant', aiResponse]
+        );
+      } catch {
         // 저장 실패 무시
       }
     }
