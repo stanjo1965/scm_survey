@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { query, queryOne } from '../../../lib/db';
+import { query, queryOne, execute } from '../../../lib/db';
 
 // PostgreSQL numeric 필드를 숫자로 변환
 function parseNumericFields(row: any) {
@@ -61,6 +61,33 @@ export async function GET(request: Request) {
       categories
     });
   } catch (error) {
+    return NextResponse.json({ success: false, message: '서버 오류' }, { status: 500 });
+  }
+}
+
+// DELETE: 설문 결과 삭제
+export async function DELETE(request: Request) {
+  try {
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json({ success: false, message: 'id가 필요합니다.' }, { status: 400 });
+    }
+
+    const result = await queryOne('SELECT id FROM survey_results WHERE id = $1', [id]);
+    if (!result) {
+      return NextResponse.json({ success: false, message: '결과를 찾을 수 없습니다.' }, { status: 404 });
+    }
+
+    // 관련 데이터 삭제 (자식 테이블 먼저)
+    await execute('DELETE FROM survey_answers WHERE survey_result_id = $1', [id]);
+    await execute('DELETE FROM category_analysis WHERE survey_result_id = $1', [id]);
+    await execute('DELETE FROM survey_results WHERE id = $1', [id]);
+
+    return NextResponse.json({ success: true, message: '삭제되었습니다.' });
+  } catch (error) {
+    console.error('Delete error:', error);
     return NextResponse.json({ success: false, message: '서버 오류' }, { status: 500 });
   }
 }

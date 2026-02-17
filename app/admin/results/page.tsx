@@ -30,7 +30,8 @@ import {
   Visibility as ViewIcon,
   Assessment as AssessmentIcon,
   TrendingUp as TrendingUpIcon,
-  People as PeopleIcon
+  People as PeopleIcon,
+  Delete as DeleteIcon
 } from '@mui/icons-material';
 import {
   RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
@@ -69,6 +70,8 @@ export default function AdminResultsPage() {
   const [selectedResult, setSelectedResult] = useState<SurveyResult | null>(null);
   const [detailData, setDetailData] = useState<{ analysis: CategoryAnalysis[]; answers: any[] } | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<SurveyResult | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetchResults();
@@ -104,6 +107,30 @@ export default function AdminResultsPage() {
       console.error('Failed to fetch detail');
     } finally {
       setDetailLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      const response = await fetch(`/api/admin/results?id=${deleteTarget.id}`, { method: 'DELETE' });
+      const data = await response.json();
+      if (data.success) {
+        setResults(prev => prev.filter(r => r.id !== deleteTarget.id));
+        setStats(prev => {
+          const newCount = prev.totalCount - 1;
+          const newAvg = newCount > 0
+            ? (prev.avgScore * prev.totalCount - (deleteTarget.total_score || 0)) / newCount
+            : 0;
+          return { totalCount: newCount, avgScore: newAvg };
+        });
+      }
+    } catch {
+      console.error('Failed to delete');
+    } finally {
+      setDeleting(false);
+      setDeleteTarget(null);
     }
   };
 
@@ -291,6 +318,15 @@ export default function AdminResultsPage() {
                         >
                           보기
                         </Button>
+                        <Button
+                          size="small"
+                          color="error"
+                          startIcon={<DeleteIcon />}
+                          onClick={() => setDeleteTarget(result)}
+                          sx={{ ml: 1 }}
+                        >
+                          삭제
+                        </Button>
                       </TableCell>
                     </TableRow>
                   ))}
@@ -419,6 +455,24 @@ export default function AdminResultsPage() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => { setSelectedResult(null); setDetailData(null); }}>닫기</Button>
+        </DialogActions>
+      </Dialog>
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={!!deleteTarget} onClose={() => setDeleteTarget(null)}>
+        <DialogTitle>설문 결과 삭제</DialogTitle>
+        <DialogContent>
+          <Typography>
+            <strong>{deleteTarget?.user_name || '-'}</strong> ({deleteTarget?.user_email || '-'})의 진단 결과를 삭제하시겠습니까?
+          </Typography>
+          <Typography variant="body2" color="error" sx={{ mt: 1 }}>
+            관련된 답변 및 분석 데이터가 모두 삭제되며 복구할 수 없습니다.
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteTarget(null)} disabled={deleting}>취소</Button>
+          <Button onClick={handleDelete} color="error" variant="contained" disabled={deleting}>
+            {deleting ? '삭제 중...' : '삭제'}
+          </Button>
         </DialogActions>
       </Dialog>
     </AdminLayout>
